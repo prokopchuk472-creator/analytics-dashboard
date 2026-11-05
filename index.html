@@ -1,119 +1,92 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="uk" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Аналітика промокодів та видач по каналах (Live Sheets)</title>
-    <!-- Tailwind CSS -->
+    <title>Аналітична панель: Промокоди та Видачі</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- PapaParse CDN для парсингу CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 500: '#6366f1', 600: '#4f46e5' }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
-    <!-- Header -->
-    <header class="border-b border-slate-800 bg-slate-950/70 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
             <div>
-                <h1 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                    Аналітична панель: Промокоди та Видачі (Live Sheets)
-                </h1>
-                <p class="text-xs sm:text-sm text-slate-400">Динамічне оновлення даних у реальному часі з Google Таблиці</p>
+                <h1 class="text-2xl font-bold tracking-tight text-white">Аналітична панель: Промокоди та Видачі (Live Sheets)</h1>
+                <p class="text-slate-400 text-sm mt-1">Динамічне оновлення даних у реальному часі з Google Таблиці</p>
             </div>
             <div class="flex items-center gap-3">
-                <!-- Індикатор статусу оновлення -->
-                <div id="statusIndicator" class="flex items-center gap-1.5 text-xs text-amber-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-                    <span>Завантаження даних...</span>
-                </div>
-                <button onclick="fetchGoogleSheetsData()" class="text-xs bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg transition">
+                <span id="statusBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                    <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                    <span id="statusText">Завантаження даних...</span>
+                </span>
+                <button onclick="fetchData()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-all shadow-md">
                     🔄 Оновити зараз
                 </button>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
+        <!-- Dynamic Summary Cards -->
+        <div id="summaryCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
 
-        <!-- Dynamic Quick Metrics Cards -->
-        <div id="metricsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Згенеровано динамічно з Google Таблиці -->
-        </div>
-
-        <!-- Filter Controls -->
-        <div class="bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl shadow-lg">
-            <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
-                <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">Фільтр каналів:</h3>
-                <button id="selectAllBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded transition text-slate-300">
-                    Вибрати всі / Скинути
-                </button>
+        <!-- Filters Section -->
+        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Фільтр каналів:</h2>
+                <button onclick="toggleAllChannels()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Вибрати всі / Скинути</button>
             </div>
-            <div id="channelToggleContainer" class="flex flex-wrap gap-2 sm:gap-3"></div>
+            <div id="channelFilters" class="flex flex-wrap gap-2"></div>
         </div>
 
-        <!-- Charts Grid Section -->
+        <!-- Charts Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            <!-- Chart 1 -->
-            <div class="bg-slate-800/60 border border-slate-700/60 p-4 sm:p-5 rounded-xl shadow-lg flex flex-col">
-                <div class="mb-4">
-                    <h2 class="text-base font-semibold text-white">1. Динаміка середньої знижки (%) по каналах</h2>
-                </div>
-                <div class="relative flex-1 min-h-[300px]">
+            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                <h2 class="text-base font-semibold text-white">1. Динаміка середньої знижки (%) по каналах</h2>
+                <div class="relative min-h-[320px]">
                     <canvas id="discountChart"></canvas>
                 </div>
             </div>
 
-            <!-- Chart 2 -->
-            <div class="bg-slate-800/60 border border-slate-700/60 p-4 sm:p-5 rounded-xl shadow-lg flex flex-col">
-                <div class="mb-4">
-                    <h2 class="text-base font-semibold text-white">2. Кількість видач по каналах (шт.)</h2>
-                </div>
-                <div class="relative flex-1 min-h-[300px]">
+            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                <h2 class="text-base font-semibold text-white">2. Кількість видач по каналах (шт.)</h2>
+                <div class="relative min-h-[320px]">
                     <canvas id="volumeChart"></canvas>
                 </div>
             </div>
 
-            <!-- Chart 3 -->
-            <div class="bg-slate-800/60 border border-slate-700/60 p-4 sm:p-5 rounded-xl shadow-lg lg:col-span-2">
-                <div class="mb-4">
-                    <h2 class="text-base font-semibold text-white">3. Частка видач по каналах (%)</h2>
-                </div>
+            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 lg:col-span-2">
+                <h2 class="text-base font-semibold text-white">3. Частка видач по каналах (%)</h2>
                 <div class="relative min-h-[320px]">
                     <canvas id="shareChart"></canvas>
                 </div>
             </div>
-
         </div>
-
-    </main>
+    </div>
 
     <script>
-        // -------------------------------------------------------------
-        // ВАШЕ ПОСИЛАННЯ НА GOOGLE ТАБЛИЦЮ
-        // -------------------------------------------------------------
+        // Посилання на опублікований CSV
         const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZk6CZxyj5wN8FFKLl95y5fGH8aAR63IY4OGaxpf4D6-ztZZsnmSSLyjVQGSn_UmLL1ostR9L-VNlq/pub?output=csv';
 
-        // Автоматичне перетворення звичайного посилання в прямий CSV-потік
-        function getCsvExportUrl(url) {
-            const matches = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-            if (!matches || !matches[1]) return url;
-            const sheetId = matches[1];
-            
-            let gid = '0';
-            const gidMatch = url.match(/gid=([0-9]+)/);
-            if (gidMatch && gidMatch[1]) {
-                gid = gidMatch[1];
-            }
-            
-            return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-        }
+        let rawData = [];
+        let months = [];
+        let overallDiscount = [];
+        let channelData = {};
+        let activeChannels = new Set();
+        let charts = {};
 
         const channelColors = {
             'SMS': '#3b82f6',
@@ -122,61 +95,69 @@
             'App Push': '#8b5cf6',
             'Web Push': '#ec4899',
             'Email': '#06b6d4',
-            'WA': '#64748b'
+            'WA': '#84cc16'
         };
 
-        let months = [];
-        let overallDiscount = [];
-        let channelData = {};
-        let activeChannels = new Set();
-        let discountChart, volumeChart, shareChart;
-
-        async function fetchGoogleSheetsData() {
-            const statusEl = document.getElementById('statusIndicator');
-            statusEl.className = "flex items-center gap-1.5 text-xs text-amber-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700";
-            statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>Оновлення...</span>`;
-
-            try {
-                const csvUrl = getCsvExportUrl(GOOGLE_SHEET_URL);
-                const response = await fetch(`${csvUrl}&t=${new Date().getTime()}`);
-                const csvText = await response.text();
-
-                Papa.parse(csvText, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        processRawData(results.data);
-                        statusEl.className = "flex items-center gap-1.5 text-xs text-emerald-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700";
-                        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>Live (Оновлено ${new Date().toLocaleTimeString()})</span>`;
+        async function fetchData() {
+            updateStatus('loading', 'Оновлення...');
+            Papa.parse(GOOGLE_SHEET_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results.data && results.data.length > 0) {
+                        rawData = results.data;
+                        processRawData(rawData);
+                        updateStatus('live', `Live (Оновлено ${new Date().toLocaleTimeString()})`);
+                    } else {
+                        updateStatus('error', 'Помилка даних');
                     }
-                });
-            } catch (error) {
-                console.error("Помилка завантаження даних з Google Sheets:", error);
-                statusEl.className = "flex items-center gap-1.5 text-xs text-rose-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700";
-                statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span>Помилка завантаження</span>`;
-            }
+                },
+                error: function(err) {
+                    console.error('PapaParse error:', err);
+                    updateStatus('error', 'Помилка мережі');
+                }
+            });
         }
 
         function processRawData(rows) {
             months = [];
             overallDiscount = [];
             channelData = {};
-            
             const monthTotals = {};
+            let currentMonth = '';
+            let currentOverall = 0;
 
             rows.forEach(row => {
-                const month = row['Місяць'] || row['Month'];
-                const channel = row['Канал'] || row['Channel'];
-                const volume = parseFloat(row['К-сть видач'] || row['Volume'] || 0);
-                const discount = parseFloat(row['Середня знижка %'] || row['Discount'] || 0);
-                const share = parseFloat(row['Частка %'] || row['Share'] || 0);
-                const monthOverall = parseFloat(row['Загальна знижка бізнесу %'] || row['OverallDiscount'] || 0);
+                let month = (row['Місяць'] || row['Month'] || '').trim();
+                if (month) {
+                    currentMonth = month;
+                } else {
+                    month = currentMonth;
+                }
+
+                const channel = (row['Канал'] || row['Channel'] || '').trim();
+
+                const volumeVal = row['К-сть видач'] || row['Volume'] || 0;
+                const volume = parseFloat(String(volumeVal).replace(/\s/g, '').replace(',', '.')) || 0;
+
+                const discountVal = row['Середня знижка %'] || row['Discount'] || 0;
+                const discount = parseFloat(String(discountVal).replace('%', '').replace(',', '.')) || 0;
+
+                const shareVal = row['Частка %'] || row['Share'] || 0;
+                const share = parseFloat(String(shareVal).replace('%', '').replace(',', '.')) || 0;
+
+                const monthOverallVal = row['Загальна знижка бізнесу %'] || row['OverallDiscount'] || 0;
+                const parsedOverall = parseFloat(String(monthOverallVal).replace('%', '').replace(',', '.'));
+                if (!isNaN(parsedOverall) && parsedOverall > 0) {
+                    currentOverall = parsedOverall;
+                }
 
                 if (!month || !channel) return;
 
                 if (!months.includes(month)) {
                     months.push(month);
-                    overallDiscount.push(monthOverall);
+                    overallDiscount.push(currentOverall);
                     monthTotals[month] = 0;
                 }
 
@@ -204,155 +185,181 @@
         }
 
         function renderMetrics(monthTotals) {
-            const container = document.getElementById('metricsGrid');
+            const container = document.getElementById('summaryCards');
             container.innerHTML = '';
-
             months.forEach((m, idx) => {
-                const div = document.createElement('div');
-                div.className = "bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl shadow-lg";
-                div.innerHTML = `
-                    <div class="text-xs text-slate-400 font-medium">${m}</div>
-                    <div class="flex justify-between items-baseline mt-2">
-                        <span class="text-2xl font-bold text-white">${(monthTotals[m] || 0).toLocaleString()}</span>
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">Знижка ${overallDiscount[idx]}%</span>
+                const totalVol = monthTotals[m] || 0;
+                const targetDiscount = overallDiscount[idx] || 0;
+                const card = document.createElement('div');
+                card.className = 'bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">${m}</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-medium border border-indigo-500/20">Ціль: ${targetDiscount}%</span>
                     </div>
-                    <div class="text-xs text-slate-400 mt-1">Видач за місяць</div>
+                    <div class="mt-4">
+                        <div class="text-2xl font-bold text-white">${totalVol.toLocaleString()} <span class="text-xs font-normal text-slate-400">шт.</span></div>
+                        <div class="text-xs text-slate-400 mt-1">Всього видач за місяць</div>
+                    </div>
                 `;
-                container.appendChild(div);
+                container.appendChild(card);
             });
         }
 
         function initFilters() {
-            const container = document.getElementById('channelToggleContainer');
+            const container = document.getElementById('channelFilters');
             container.innerHTML = '';
-
-            Object.keys(channelData).forEach(channel => {
+            Object.keys(channelData).forEach(ch => {
+                const isActive = activeChannels.has(ch);
                 const btn = document.createElement('button');
-                btn.className = `px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 ${
-                    activeChannels.has(channel)
-                        ? 'bg-slate-700 border-slate-500 text-white shadow-sm'
-                        : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+                btn.onclick = () => toggleChannel(ch);
+                btn.className = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 border ${
+                    isActive 
+                    ? 'bg-slate-800 text-white border-slate-600 shadow' 
+                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700'
                 }`;
-                btn.style.borderColor = activeChannels.has(channel) ? channelColors[channel] : '';
-                
                 btn.innerHTML = `
-                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${channelColors[channel]}"></span>
-                    ${channel}
+                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${channelColors[ch] || '#ccc'}"></span>
+                    ${ch}
                 `;
-
-                btn.onclick = () => {
-                    if (activeChannels.has(channel)) activeChannels.delete(channel);
-                    else activeChannels.add(channel);
-                    initFilters();
-                    renderOrUpdateCharts();
-                };
-
                 container.appendChild(btn);
             });
         }
 
-        document.getElementById('selectAllBtn').onclick = () => {
-            if (activeChannels.size === Object.keys(channelData).length) {
-                activeChannels.clear();
+        function toggleChannel(ch) {
+            if (activeChannels.has(ch)) {
+                if (activeChannels.size > 1) activeChannels.delete(ch);
             } else {
-                Object.keys(channelData).forEach(ch => activeChannels.add(ch));
+                activeChannels.add(ch);
             }
             initFilters();
             renderOrUpdateCharts();
-        };
+        }
+
+        function toggleAllChannels() {
+            const all = Object.keys(channelData);
+            if (activeChannels.size === all.length) {
+                activeChannels = new Set([all[0]]);
+            } else {
+                activeChannels = new Set(all);
+            }
+            initFilters();
+            renderOrUpdateCharts();
+        }
 
         function renderOrUpdateCharts() {
-            if (!discountChart) {
-                const ctx1 = document.getElementById('discountChart').getContext('2d');
-                discountChart = new Chart(ctx1, {
-                    type: 'line',
-                    data: getDiscountData(),
-                    options: { responsive: true, maintainAspectRatio: false }
+            const discountDatasets = [];
+            const volumeDatasets = [];
+            const shareDatasets = [];
+
+            // Лінія загальної знижки бізнесу
+            discountDatasets.push({
+                label: 'Загальна знижка бізнесу',
+                data: overallDiscount,
+                borderColor: '#ef4444',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 3
+            });
+
+            activeChannels.forEach(ch => {
+                const data = channelData[ch];
+                const color = channelColors[ch] || '#888';
+
+                discountDatasets.push({
+                    label: ch,
+                    data: data.discount,
+                    borderColor: color,
+                    backgroundColor: color,
+                    tension: 0.3,
+                    fill: false
                 });
 
-                const ctx2 = document.getElementById('volumeChart').getContext('2d');
-                volumeChart = new Chart(ctx2, {
-                    type: 'bar',
-                    data: getVolumeData(),
-                    options: { responsive: true, maintainAspectRatio: false }
+                volumeDatasets.push({
+                    label: ch,
+                    data: data.volume,
+                    backgroundColor: color,
+                    borderRadius: 4
                 });
 
-                const ctx3 = document.getElementById('shareChart').getContext('2d');
-                shareChart = new Chart(ctx3, {
-                    type: 'bar',
-                    data: getShareData(),
-                    options: { responsive: true, maintainAspectRatio: false }
+                shareDatasets.push({
+                    label: ch,
+                    data: data.share,
+                    borderColor: color,
+                    backgroundColor: color,
+                    tension: 0.3,
+                    fill: false
                 });
+            });
+
+            createChart('discountChart', 'line', months, discountDatasets, { ySuffix: '%' });
+            createChart('volumeChart', 'bar', months, volumeDatasets, { stacked: false });
+            createChart('shareChart', 'line', months, shareDatasets, { ySuffix: '%' });
+        }
+
+        function createChart(canvasId, type, labels, datasets, options = {}) {
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            charts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 12 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y + (options.ySuffix || '');
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } },
+                        y: {
+                            grid: { color: '#1e293b' },
+                            ticks: {
+                                color: '#94a3b8',
+                                callback: value => value + (options.ySuffix || '')
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStatus(type, text) {
+            const badge = document.getElementById('statusBadge');
+            const dot = document.getElementById('statusDot');
+            const label = document.getElementById('statusText');
+            label.innerText = text;
+
+            if (type === 'live') {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            } else if (type === 'loading') {
+                dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-ping';
+                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
             } else {
-                discountChart.data = getDiscountData();
-                discountChart.update();
-
-                volumeChart.data = getVolumeData();
-                volumeChart.update();
-
-                shareChart.data = getShareData();
-                shareChart.update();
+                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20';
             }
         }
 
-        function getDiscountData() {
-            const datasets = [{
-                label: 'Загальна знижка бізнесу',
-                data: overallDiscount,
-                borderColor: '#f59e0b',
-                backgroundColor: '#f59e0b',
-                borderWidth: 3,
-                borderDash: [6, 4],
-                fill: false
-            }];
-
-            Object.keys(channelData).forEach(ch => {
-                if (activeChannels.has(ch)) {
-                    datasets.push({
-                        label: ch,
-                        data: channelData[ch].discount,
-                        borderColor: channelColors[ch],
-                        backgroundColor: channelColors[ch],
-                        borderWidth: 2,
-                        tension: 0.2
-                    });
-                }
-            });
-            return { labels: months, datasets };
-        }
-
-        function getVolumeData() {
-            const datasets = [];
-            Object.keys(channelData).forEach(ch => {
-                if (activeChannels.has(ch)) {
-                    datasets.push({
-                        label: ch,
-                        data: channelData[ch].volume,
-                        backgroundColor: channelColors[ch]
-                    });
-                }
-            });
-            return { labels: months, datasets };
-        }
-
-        function getShareData() {
-            const datasets = [];
-            Object.keys(channelData).forEach(ch => {
-                if (activeChannels.has(ch)) {
-                    datasets.push({
-                        label: ch,
-                        data: channelData[ch].share,
-                        backgroundColor: channelColors[ch]
-                    });
-                }
-            });
-            return { labels: months, datasets };
-        }
-
-        window.onload = () => {
-            fetchGoogleSheetsData();
-            setInterval(fetchGoogleSheetsData, 120000); // Оновлювати кожні 2 хв
-        };
+        // Запуск при завантаженні сторінки
+        fetchData();
+        // Автооновлення кожні 2 хвилини
+        setInterval(fetchData, 120000);
     </script>
 </body>
 </html>
