@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аналітика промокодів та видач по каналах (Live Sheets)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse CDN для парсингу CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-950/70 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
+            <div>
+                <h1 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                    Аналітична панель: Промокоди та Видачі (Live Sheets)
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-400">Динамічне оновлення даних у реальному часі з Google Таблиці</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- Індикатор статусу оновлення -->
+                <div id="statusIndicator" class="flex items-center gap-1.5 text-xs text-amber-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                    <span>Завантаження даних...</span>
+                </div>
+                <button onclick="fetchGoogleSheetsData()" class="text-xs bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg transition">
+                    🔄 Оновити зараз
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
+
+        <!-- Dynamic Quick Metrics Cards -->
+        <div id="metricsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Згенеровано динамічно з Google Таблиці -->
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl shadow-lg">
+            <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+                <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">Фільтр каналів:</h3>
+                <button id="selectAllBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded transition text-slate-300">
+                    Вибрати всі / Скинути
+                </button>
+            </div>
+            <div id="channelToggleContainer" class="flex flex-wrap gap-2 sm:gap-3"></div>
+        </div>
+
+        <!-- Charts Grid Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Chart 1 -->
+            <div class="bg-slate-800/60 border border-slate-700/60 p-4 sm:p-5 rounded-xl shadow-lg flex flex-col">
+                <div class="mb-4">
+                    <h2 class="text-base font-semibold text-white">1. Динаміка середньої знижки (%) по каналах</h2>
+                </div>
+                <div class="relative flex-1 min-h-[300px]">
+                    <canvas id="discountChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2 -->
+            <div class="bg-slate-800/60 border border-slate-700/60 p-4 sm:p-5 rounded-xl shadow-lg flex flex-col">
+                <div class="mb-4">
+                    <h2 class="text-base font-semibold text-white">2. Кількість видач по каналах (шт.)</h2>
+                </div>
+                <div class="relative flex-1 min-h-[300px]">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 3 -->
+            <div class="bg-slate-800/60 border border-slate-700/60 p-4 sm:p-5 rounded-xl shadow-lg lg:col-span-2">
+                <div class="mb-4">
+                    <h2 class="text-base font-semibold text-white">3. Частка видач по каналах (%)</h2>
+                </div>
+                <div class="relative min-h-[320px]">
+                    <canvas id="shareChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // -------------------------------------------------------------
+        // ВАШЕ ПОСИЛАННЯ НА GOOGLE ТАБЛИЦЮ
+        // -------------------------------------------------------------
+        const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1HtoEiHyumQqGID_t6RmEk5P_PcrBj1rfHyG0O2bBd8s/edit?usp=sharing';
+
+        // Автоматичне перетворення звичайного посилання в прямий CSV-потік
+        function getCsvExportUrl(url) {
+            const matches = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (!matches || !matches[1]) return url;
+            const sheetId = matches[1];
+            
+            let gid = '0';
+            const gidMatch = url.match(/gid=([0-9]+)/);
+            if (gidMatch && gidMatch[1]) {
+                gid = gidMatch[1];
+            }
+            
+            return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+        }
+
+        const channelColors = {
+            'SMS': '#3b82f6',
+            'PersonalAc': '#10b981',
+            'Telesale': '#f59e0b',
+            'App Push': '#8b5cf6',
+            'Web Push': '#ec4899',
+            'Email': '#06b6d4',
+            'WA': '#64748b'
+        };
+
+        let months = [];
+        let overallDiscount = [];
+        let channelData = {};
+        let activeChannels = new Set();
+        let discountChart, volumeChart, shareChart;
+
+        async function fetchGoogleSheetsData() {
+            const statusEl = document.getElementById('statusIndicator');
+            statusEl.className = "flex items-center gap-1.5 text-xs text-amber-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700";
+            statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>Оновлення...</span>`;
+
+            try {
+                const csvUrl = getCsvExportUrl(GOOGLE_SHEET_URL);
+                const response = await fetch(`${csvUrl}&t=${new Date().getTime()}`);
+                const csvText = await response.text();
+
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        processRawData(results.data);
+                        statusEl.className = "flex items-center gap-1.5 text-xs text-emerald-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700";
+                        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>Live (Оновлено ${new Date().toLocaleTimeString()})</span>`;
+                    }
+                });
+            } catch (error) {
+                console.error("Помилка завантаження даних з Google Sheets:", error);
+                statusEl.className = "flex items-center gap-1.5 text-xs text-rose-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700";
+                statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span>Помилка завантаження</span>`;
+            }
+        }
+
+        function processRawData(rows) {
+            months = [];
+            overallDiscount = [];
+            channelData = {};
+            
+            const monthTotals = {};
+
+            rows.forEach(row => {
+                const month = row['Місяць'] || row['Month'];
+                const channel = row['Канал'] || row['Channel'];
+                const volume = parseFloat(row['К-сть видач'] || row['Volume'] || 0);
+                const discount = parseFloat(row['Середня знижка %'] || row['Discount'] || 0);
+                const share = parseFloat(row['Частка %'] || row['Share'] || 0);
+                const monthOverall = parseFloat(row['Загальна знижка бізнесу %'] || row['OverallDiscount'] || 0);
+
+                if (!month || !channel) return;
+
+                if (!months.includes(month)) {
+                    months.push(month);
+                    overallDiscount.push(monthOverall);
+                    monthTotals[month] = 0;
+                }
+
+                monthTotals[month] += volume;
+
+                if (!channelData[channel]) {
+                    channelData[channel] = { volume: [], share: [], discount: [] };
+                    if (!channelColors[channel]) {
+                        channelColors[channel] = '#' + Math.floor(Math.random()*16777215).toString(16);
+                    }
+                }
+
+                channelData[channel].volume.push(volume);
+                channelData[channel].share.push(share);
+                channelData[channel].discount.push(discount);
+            });
+
+            if (activeChannels.size === 0) {
+                Object.keys(channelData).forEach(ch => activeChannels.add(ch));
+            }
+
+            renderMetrics(monthTotals);
+            initFilters();
+            renderOrUpdateCharts();
+        }
+
+        function renderMetrics(monthTotals) {
+            const container = document.getElementById('metricsGrid');
+            container.innerHTML = '';
+
+            months.forEach((m, idx) => {
+                const div = document.createElement('div');
+                div.className = "bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl shadow-lg";
+                div.innerHTML = `
+                    <div class="text-xs text-slate-400 font-medium">${m}</div>
+                    <div class="flex justify-between items-baseline mt-2">
+                        <span class="text-2xl font-bold text-white">${(monthTotals[m] || 0).toLocaleString()}</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">Знижка ${overallDiscount[idx]}%</span>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1">Видач за місяць</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function initFilters() {
+            const container = document.getElementById('channelToggleContainer');
+            container.innerHTML = '';
+
+            Object.keys(channelData).forEach(channel => {
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 ${
+                    activeChannels.has(channel)
+                        ? 'bg-slate-700 border-slate-500 text-white shadow-sm'
+                        : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+                }`;
+                btn.style.borderColor = activeChannels.has(channel) ? channelColors[channel] : '';
+                
+                btn.innerHTML = `
+                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${channelColors[channel]}"></span>
+                    ${channel}
+                `;
+
+                btn.onclick = () => {
+                    if (activeChannels.has(channel)) activeChannels.delete(channel);
+                    else activeChannels.add(channel);
+                    initFilters();
+                    renderOrUpdateCharts();
+                };
+
+                container.appendChild(btn);
+            });
+        }
+
+        document.getElementById('selectAllBtn').onclick = () => {
+            if (activeChannels.size === Object.keys(channelData).length) {
+                activeChannels.clear();
+            } else {
+                Object.keys(channelData).forEach(ch => activeChannels.add(ch));
+            }
+            initFilters();
+            renderOrUpdateCharts();
+        };
+
+        function renderOrUpdateCharts() {
+            if (!discountChart) {
+                const ctx1 = document.getElementById('discountChart').getContext('2d');
+                discountChart = new Chart(ctx1, {
+                    type: 'line',
+                    data: getDiscountData(),
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                const ctx2 = document.getElementById('volumeChart').getContext('2d');
+                volumeChart = new Chart(ctx2, {
+                    type: 'bar',
+                    data: getVolumeData(),
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                const ctx3 = document.getElementById('shareChart').getContext('2d');
+                shareChart = new Chart(ctx3, {
+                    type: 'bar',
+                    data: getShareData(),
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            } else {
+                discountChart.data = getDiscountData();
+                discountChart.update();
+
+                volumeChart.data = getVolumeData();
+                volumeChart.update();
+
+                shareChart.data = getShareData();
+                shareChart.update();
+            }
+        }
+
+        function getDiscountData() {
+            const datasets = [{
+                label: 'Загальна знижка бізнесу',
+                data: overallDiscount,
+                borderColor: '#f59e0b',
+                backgroundColor: '#f59e0b',
+                borderWidth: 3,
+                borderDash: [6, 4],
+                fill: false
+            }];
+
+            Object.keys(channelData).forEach(ch => {
+                if (activeChannels.has(ch)) {
+                    datasets.push({
+                        label: ch,
+                        data: channelData[ch].discount,
+                        borderColor: channelColors[ch],
+                        backgroundColor: channelColors[ch],
+                        borderWidth: 2,
+                        tension: 0.2
+                    });
+                }
+            });
+            return { labels: months, datasets };
+        }
+
+        function getVolumeData() {
+            const datasets = [];
+            Object.keys(channelData).forEach(ch => {
+                if (activeChannels.has(ch)) {
+                    datasets.push({
+                        label: ch,
+                        data: channelData[ch].volume,
+                        backgroundColor: channelColors[ch]
+                    });
+                }
+            });
+            return { labels: months, datasets };
+        }
+
+        function getShareData() {
+            const datasets = [];
+            Object.keys(channelData).forEach(ch => {
+                if (activeChannels.has(ch)) {
+                    datasets.push({
+                        label: ch,
+                        data: channelData[ch].share,
+                        backgroundColor: channelColors[ch]
+                    });
+                }
+            });
+            return { labels: months, datasets };
+        }
+
+        window.onload = () => {
+            fetchGoogleSheetsData();
+            setInterval(fetchGoogleSheetsData, 120000); // Оновлювати кожні 2 хв
+        };
+    </script>
+</body>
+</html>
