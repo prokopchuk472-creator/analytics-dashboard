@@ -12,9 +12,7 @@
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        brand: { 500: '#6366f1', 600: '#4f46e5' }
-                    }
+                    colors: { brand: { 500: '#6366f1', 600: '#4f46e5' } }
                 }
             }
         }
@@ -26,28 +24,21 @@
     <div id="loginOverlay" class="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md space-y-6">
             <div class="text-center space-y-2">
-                <div class="w-12 h-12 bg-indigo-600/10 text-indigo-400 rounded-xl flex items-center justify-center mx-auto border border-indigo-500/20 text-xl">
-                    🔒
-                </div>
+                <div class="w-12 h-12 bg-indigo-600/10 text-indigo-400 rounded-xl flex items-center justify-center mx-auto border border-indigo-500/20 text-xl">🔒</div>
                 <h2 class="text-xl font-bold text-white">Доступ обмежено</h2>
                 <p class="text-sm text-slate-400">Введіть логін та пароль для перегляду дашборду</p>
             </div>
-
             <form onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Логін</label>
-                    <input type="text" id="username" required placeholder="Введіть логін" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                    <input type="text" id="username" required placeholder="Введіть логін" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Пароль</label>
-                    <input type="password" id="password" required placeholder="Введіть пароль" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                    <input type="password" id="password" required placeholder="Введіть пароль" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
-                <div id="loginError" class="text-xs text-rose-400 font-medium hidden text-center">
-                    Неправильний логін або пароль!
-                </div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg text-sm transition-all shadow-md">
-                    Увійти
-                </button>
+                <div id="loginError" class="text-xs text-rose-400 font-medium hidden text-center">Неправильний логін або пароль!</div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg text-sm transition-all shadow-md">Увійти</button>
             </form>
         </div>
     </div>
@@ -57,112 +48,146 @@
         <!-- Header -->
         <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
             <div>
-                <h1 class="text-2xl font-bold tracking-tight text-white">Аналітична панель: Промокоди та Видачі (Live Sheets)</h1>
-                <p class="text-slate-400 text-sm mt-1">Динамічне оновлення даних у реальному часі з Google Таблиці</p>
+                <h1 class="text-2xl font-bold tracking-tight text-white">Аналітична панель: Промокоди та Видачі (Live)</h1>
+                <p class="text-slate-400 text-sm mt-1">Деталізована аналітика по каналах, місяцях та днях</p>
             </div>
             <div class="flex items-center gap-3">
                 <span id="statusBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
                     <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
-                    <span id="statusText">Завантаження даних...</span>
+                    <span id="statusText">Завантаження...</span>
                 </span>
-                <button onclick="fetchData()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-all shadow-md">
-                    🔄 Оновити
-                </button>
-                <button onclick="handleLogout()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg border border-slate-700 transition-all">
-                    Вийти
-                </button>
+                <button onclick="fetchAllData()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-all shadow-md">🔄 Оновити</button>
+                <button onclick="handleLogout()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg border border-slate-700 transition-all">Вийти</button>
             </div>
         </header>
 
         <!-- Dynamic Summary Cards -->
         <div id="summaryCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
 
-        <!-- Filters Section -->
-        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Фільтр каналів:</h2>
-                <button onclick="toggleAllChannels()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Вибрати всі / Скинути</button>
+        <!-- Controls & Filters Section -->
+        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-5">
+            <!-- Channel Filters -->
+            <div class="space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">1. Фільтр каналів (перераховує картки та графіки):</h2>
+                    <button onclick="toggleAllChannels()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Вибрати всі / Скинути</button>
+                </div>
+                <div id="channelFilters" class="flex flex-wrap gap-2"></div>
             </div>
-            <div id="channelFilters" class="flex flex-wrap gap-2"></div>
+
+            <hr class="border-slate-800">
+
+            <!-- View Mode & Month Selector -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-2">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">2. Деталізація графіків:</h2>
+                    <div class="inline-flex rounded-lg bg-slate-950 p-1 border border-slate-800">
+                        <button id="btnModeMonth" onclick="setViewMode('month')" class="px-4 py-1.5 rounded-md text-xs font-medium transition-all bg-indigo-600 text-white shadow">По місяцях</button>
+                        <button id="btnModeDay" onclick="setViewMode('day')" class="px-4 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white">По днях (детально)</button>
+                    </div>
+                </div>
+
+                <!-- Multi-Month Filter (Visible in 'day' mode) -->
+                <div id="monthFilterWrapper" class="space-y-2 hidden">
+                    <div class="flex items-center justify-between gap-4">
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Оберіть місяці для деталізації по днях:</h2>
+                        <button onclick="toggleAllMonths()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Всі місяці</button>
+                    </div>
+                    <div id="monthFilters" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
         </div>
 
         <!-- Charts Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
                 <h2 class="text-base font-semibold text-white">1. Динаміка середньої знижки (%) по каналах</h2>
-                <div class="relative min-h-[320px]">
-                    <canvas id="discountChart"></canvas>
-                </div>
+                <div class="relative min-h-[320px]"><canvas id="discountChart"></canvas></div>
             </div>
 
             <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
                 <h2 class="text-base font-semibold text-white">2. Кількість видач по каналах (шт.)</h2>
-                <div class="relative min-h-[320px]">
-                    <canvas id="volumeChart"></canvas>
-                </div>
+                <div class="relative min-h-[320px]"><canvas id="volumeChart"></canvas></div>
             </div>
 
             <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 lg:col-span-2">
                 <h2 class="text-base font-semibold text-white">3. Частка видач по каналах (%)</h2>
-                <div class="relative min-h-[320px]">
-                    <canvas id="shareChart"></canvas>
-                </div>
+                <div class="relative min-h-[320px]"><canvas id="shareChart"></canvas></div>
             </div>
         </div>
     </div>
 
     <script>
-        // НАЛАШТУВАННЯ АВТЕНТИФІКАЦІЇ (ВКАЖІТЬ СВОЇ ДАНІ)
+        // ==========================================
+        // 1. НАЛАШТУВАННЯ ЛОГІНУ ТА ПОСИЛАНЬ
+        // ==========================================
         const DEFAULT_LOGIN = "admin_97";
         const DEFAULT_PASSWORD = "yourpass97";
 
-        const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZk6CZxyj5wN8FFKLl95y5fGH8aAR63IY4OGaxpf4D6-ztZZsnmSSLyjVQGSn_UmLL1ostR9L-VNlq/pub?output=csv';
+        // ВСТАВ СЮДИ 3 ОПУБЛІКОВАНІ CSV-ПОСИЛАННЯ З GOOGLE SHEETS:
+        const URL_VOLUME   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZk6CZxyj5wN8FFKLl95y5fGH8aAR63IY4OGaxpf4D6-ztZZsnmSSLyjVQGSn_UmLL1ostR9L-VNlq/pub?gid=318284391&single=true&output=csv';
+        const URL_DISCOUNT = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZk6CZxyj5wN8FFKLl95y5fGH8aAR63IY4OGaxpf4D6-ztZZsnmSSLyjVQGSn_UmLL1ostR9L-VNlq/pub?gid=1308238343&single=true&output=csv';
+        const URL_SHARE    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZk6CZxyj5wN8FFKLl95y5fGH8aAR63IY4OGaxpf4D6-ztZZsnmSSLyjVQGSn_UmLL1ostR9L-VNlq/pub?gid=774254563&single=true&output=csv';
 
-        let rawData = [];
-        let months = [];
-        let overallDiscount = [];
-        let channelData = {};
+        // ==========================================
+        // 2. СТАН ДОДАТКУ
+        // ==========================================
+        let dailyRecords = [];
+        let availableChannels = [];
         let activeChannels = new Set();
+        let availableMonths = [];
+        let activeMonths = new Set();
+        let viewMode = 'month';
         let charts = {};
 
         const channelColors = {
             'SMS': '#3b82f6',
-            'PersonalAc': '#10b981',
+            'Personal Account': '#10b981',
             'Telesale': '#f59e0b',
             'App Push': '#8b5cf6',
-            'Web Push': '#ec4899',
+            'WebPush': '#ec4899',
             'Email': '#06b6d4',
-            'WA': '#84cc16'
+            'Whats Up': '#84cc16',
+            'Cookie Email': '#f97316',
+            'Flash SMS': '#f43f5e',
+            'PaidChannel': '#14b8a6',
+            'Social': '#a855f7',
+            'Game': '#eab308',
+            'Action': '#64748b',
+            'Pre Collection': '#0ea5e9'
         };
 
-        // ПЕРЕВІРКА АВТОРИЗАЦІЇ
-        function checkAuth() {
-            const isAuthenticated = sessionStorage.getItem('dashboard_auth') === 'true';
-            const overlay = document.getElementById('loginOverlay');
-            const content = document.getElementById('dashboardContent');
+        // Технічні колонки (у нижньому регістрі після видалення '%')
+        const IGNORED_COLS = new Set([
+            'date',
+            'applications total',
+            'applications',
+            'applications with promocode',
+            'promocode',
+            'check field',
+            ''
+        ]);
 
-            if (isAuthenticated) {
-                overlay.classList.add('hidden');
-                content.classList.remove('hidden');
-                fetchData();
-            } else {
-                overlay.classList.remove('hidden');
-                content.classList.add('hidden');
-            }
+        // ==========================================
+        // 3. АВТОРИЗАЦІЯ
+        // ==========================================
+        function checkAuth() {
+            const isAuth = sessionStorage.getItem('dashboard_auth') === 'true';
+            document.getElementById('loginOverlay').classList.toggle('hidden', isAuth);
+            document.getElementById('dashboardContent').classList.toggle('hidden', !isAuth);
+            if (isAuth) fetchAllData();
         }
 
         function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('username').value.trim();
             const p = document.getElementById('password').value.trim();
-            const err = document.getElementById('loginError');
-
             if (u === DEFAULT_LOGIN && p === DEFAULT_PASSWORD) {
                 sessionStorage.setItem('dashboard_auth', 'true');
-                err.classList.add('hidden');
+                document.getElementById('loginError').classList.add('hidden');
                 checkAuth();
             } else {
-                err.classList.remove('hidden');
+                document.getElementById('loginError').classList.remove('hidden');
             }
         }
 
@@ -171,207 +196,390 @@
             checkAuth();
         }
 
-        async function fetchData() {
-            updateStatus('loading', 'Оновлення...');
-            Papa.parse(GOOGLE_SHEET_URL, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    if (results.data && results.data.length > 0) {
-                        rawData = results.data;
-                        processRawData(rawData);
-                        updateStatus('live', `Live (Оновлено ${new Date().toLocaleTimeString()})`);
-                    } else {
-                        updateStatus('error', 'Помилка даних');
-                    }
-                },
-                error: function(err) {
-                    console.error('PapaParse error:', err);
-                    updateStatus('error', 'Помилка мережі');
-                }
+        // ==========================================
+        // 4. ЗАВАНТАЖЕННЯ ТА ПАРСИНГ 3 ТАБЛИЦЬ
+        // ==========================================
+        function parseCsvUrl(url) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: res => resolve(res.data),
+                    error: err => reject(err)
+                });
             });
         }
 
-        function processRawData(rows) {
-            months = [];
-            overallDiscount = [];
-            channelData = {};
-            const monthTotals = {};
-            let currentMonth = '';
-            let currentOverall = 0;
+        async function fetchAllData() {
+            updateStatus('loading', 'Завантаження 3 таблиць...');
+            try {
+                const [volRows, discRows, shareRows] = await Promise.all([
+                    parseCsvUrl(URL_VOLUME),
+                    parseCsvUrl(URL_DISCOUNT),
+                    parseCsvUrl(URL_SHARE)
+                ]);
 
-            rows.forEach(row => {
-                const values = Object.values(row).map(v => String(v || '').trim());
-                if (values.length < 2) return;
+                mergeAndProcessData(volRows, discRows, shareRows);
+                updateStatus('live', `Live (Оновлено ${new Date().toLocaleTimeString()})`);
+            } catch (err) {
+                console.error('Помилка завантаження:', err);
+                updateStatus('error', 'Помилка завантаження CSV');
+            }
+        }
 
-                let month = values[0];
-                if (month) {
-                    currentMonth = month;
-                } else {
-                    month = currentMonth;
+        // Очищення назви колонки: "Personal Account %" -> "Personal Account"
+        function normalizeHeader(header) {
+            return String(header || '').replace(/%/g, '').replace(/\s+/g, ' ').trim();
+        }
+
+        // Перетворення рядка CSV у об'єкт з нормалізованими ключами
+        function normalizeRow(row) {
+            const norm = {};
+            Object.keys(row).forEach(k => {
+                const cleanKey = normalizeHeader(k);
+                if (cleanKey) {
+                    norm[cleanKey] = row[k];
                 }
-
-                const channel = values[1];
-                if (!channel || channel.toLowerCase().includes('канал') || channel.toLowerCase().includes('channel')) return;
-
-                const volume = parseFloat(values[2].replace(/\s/g, '').replace(',', '.')) || 0;
-                const discount = parseFloat(values[3].replace('%', '').replace(',', '.')) || 0;
-                const share = parseFloat(values[4].replace('%', '').replace(',', '.')) || 0;
-
-                const parsedOverall = parseFloat(values[5].replace('%', '').replace(',', '.'));
-                if (!isNaN(parsedOverall) && parsedOverall > 0) {
-                    currentOverall = parsedOverall;
-                }
-
-                if (!month || !channel) return;
-
-                if (!months.includes(month)) {
-                    months.push(month);
-                    overallDiscount.push(currentOverall);
-                    monthTotals[month] = 0;
-                }
-
-                monthTotals[month] += volume;
-
-                if (!channelData[channel]) {
-                    channelData[channel] = { volume: [], share: [], discount: [] };
-                    if (!channelColors[channel]) {
-                        channelColors[channel] = '#' + Math.floor(Math.random()*16777215).toString(16);
-                    }
-                }
-
-                channelData[channel].volume.push(volume);
-                channelData[channel].share.push(share);
-                channelData[channel].discount.push(discount);
             });
+            return norm;
+        }
+
+        function parseNumber(val) {
+            if (val === undefined || val === null) return 0;
+            const str = String(val).trim();
+            if (str === '-' || str === '' || str === '#DIV/0!' || str === '#N/A') return 0;
+            const cleaned = str.replace('%', '').replace(/\s/g, '').replace(',', '.');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // Витягуємо назву місяця з дати типу "15 лист. 2026 р." -> "лист. 2026"
+        function extractMonthKey(dateStr) {
+            const parts = dateStr.replace('р.', '').trim().split(/\s+/);
+            if (parts.length >= 3) {
+                return `${parts[1]} ${parts[2]}`;
+            }
+            return dateStr;
+        }
+
+        // Короткий формат дати для осі X: "15 лист. 2026 р." -> "15 лист."
+        function extractShortDate(dateStr) {
+            const parts = dateStr.trim().split(/\s+/);
+            if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
+            return dateStr;
+        }
+
+        function mergeAndProcessData(volRowsRaw, discRowsRaw, shareRowsRaw) {
+            const volRows = volRowsRaw.map(normalizeRow);
+            const discRows = discRowsRaw.map(normalizeRow);
+            const shareRows = shareRowsRaw.map(normalizeRow);
+
+            const discMap = {};
+            const shareMap = {};
+
+            discRows.forEach(r => {
+                const d = String(r['Date'] || Object.values(r)[0] || '').trim();
+                if (d) discMap[d] = r;
+            });
+
+            shareRows.forEach(r => {
+                const d = String(r['Date'] || Object.values(r)[0] || '').trim();
+                if (d) shareMap[d] = r;
+            });
+
+            dailyRecords = [];
+            const channelTotalVol = {};
+            const monthsSet = new Set();
+
+            // Збираємо всі унікальні назви каналів із усіх 3 таблиць
+            const allColsSet = new Set();
+            [volRows[0], discRows[0], shareRows[0]].forEach(sample => {
+                if (!sample) return;
+                Object.keys(sample).forEach(col => {
+                    if (!IGNORED_COLS.has(col.toLowerCase())) {
+                        allColsSet.add(col);
+                    }
+                });
+            });
+
+            const allCols = Array.from(allColsSet);
+            allCols.forEach(ch => channelTotalVol[ch] = 0);
+
+            // Йдемо в хронологічному порядку (від старіших дат до новіших)
+            const chronologicalRows = [...volRows].reverse();
+
+            chronologicalRows.forEach(vRow => {
+                const dateStr = String(vRow['Date'] || Object.values(vRow)[0] || '').trim();
+                if (!dateStr || dateStr.toLowerCase().includes('підс') || dateStr.toLowerCase().includes('total')) return;
+
+                const dRow = discMap[dateStr] || {};
+                const sRow = shareMap[dateStr] || {};
+                const monthKey = extractMonthKey(dateStr);
+                monthsSet.add(monthKey);
+
+                const appsTotal = parseNumber(vRow['Applications Total'] || dRow['Applications Total'] || sRow['Applications Total']);
+                const channelsObj = {};
+
+                allCols.forEach(ch => {
+                    const vol = parseNumber(vRow[ch]);
+                    let disc = parseNumber(dRow[ch]);
+                    let share = parseNumber(sRow[ch]);
+
+                    // Автокорекція дробів (0.438 -> 43.8%), якщо Google Sheets віддав число без '%'
+                    if (disc > 0 && disc <= 1) disc = disc * 100;
+                    if (share > 0 && share <= 1) share = share * 100;
+
+                    channelTotalVol[ch] += vol;
+                    channelsObj[ch] = { vol, disc, share };
+                });
+
+                dailyRecords.push({
+                    dateStr,
+                    shortDate: extractShortDate(dateStr),
+                    monthKey,
+                    appsTotal,
+                    channels: channelsObj
+                });
+            });
+
+            // Ховаємо канали, де сумарна кількість видач дорівнює 0
+            availableChannels = allCols.filter(ch => channelTotalVol[ch] > 0);
 
             if (activeChannels.size === 0) {
-                Object.keys(channelData).forEach(ch => activeChannels.add(ch));
+                availableChannels.forEach(ch => activeChannels.add(ch));
+            } else {
+                activeChannels = new Set([...activeChannels].filter(ch => availableChannels.includes(ch)));
+                if (activeChannels.size === 0) availableChannels.forEach(ch => activeChannels.add(ch));
             }
 
-            renderMetrics(monthTotals);
-            initFilters();
-            renderOrUpdateCharts();
+            availableMonths = Array.from(monthsSet);
+            if (activeMonths.size === 0 && availableMonths.length > 0) {
+                activeMonths.add(availableMonths[availableMonths.length - 1]);
+            }
+
+            refreshDashboardUI();
         }
 
-        function renderMetrics(monthTotals) {
+        function refreshDashboardUI() {
+            renderChannelFilters();
+            renderMonthFilters();
+            renderSummaryCards();
+            renderCharts();
+        }
+
+        // ==========================================
+        // 5. КАРТКИ З ПЕРЕРАХУНКОМ ПО ФІЛЬТРАХ
+        // ==========================================
+        function renderSummaryCards() {
             const container = document.getElementById('summaryCards');
             container.innerHTML = '';
-            months.forEach((m, idx) => {
-                const totalVol = monthTotals[m] || 0;
-                const targetDiscount = overallDiscount[idx] || 0;
+
+            availableMonths.forEach(mKey => {
+                const monthDays = dailyRecords.filter(r => r.monthKey === mKey);
+
+                let selectedVolSum = 0;
+                let weightedDiscNumerator = 0;
+
+                monthDays.forEach(day => {
+                    activeChannels.forEach(ch => {
+                        const cData = day.channels[ch];
+                        if (cData && cData.vol > 0) {
+                            selectedVolSum += cData.vol;
+                            weightedDiscNumerator += (cData.vol * cData.disc);
+                        }
+                    });
+                });
+
+                // Середньозважена знижка лише по вибраних каналах
+                const weightedAvgDiscount = selectedVolSum > 0
+                    ? (weightedDiscNumerator / selectedVolSum).toFixed(1)
+                    : '0.0';
+
                 const card = document.createElement('div');
                 card.className = 'bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between';
                 card.innerHTML = `
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">${m}</span>
-                        <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-medium border border-indigo-500/20">Ціль: ${targetDiscount}%</span>
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">${mKey}</span>
+                        <span class="text-xs px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-medium border border-indigo-500/20" title="Середньозважена знижка по вибраних каналах">
+                            Знижка: ${weightedAvgDiscount}%
+                        </span>
                     </div>
                     <div class="mt-4">
-                        <div class="text-2xl font-bold text-white">${totalVol.toLocaleString()} <span class="text-xs font-normal text-slate-400">шт.</span></div>
-                        <div class="text-xs text-slate-400 mt-1">Всього видач за місяць</div>
+                        <div class="text-2xl font-bold text-white">${Math.round(selectedVolSum).toLocaleString('uk-UA')} <span class="text-xs font-normal text-slate-400">шт.</span></div>
+                        <div class="text-xs text-slate-400 mt-1">Видач по вибраних каналах</div>
                     </div>
                 `;
                 container.appendChild(card);
             });
         }
 
-        function initFilters() {
+        // ==========================================
+        // 6. ФІЛЬТРИ ТА ПЕРЕМИКАЧІ РЕЖИМІВ
+        // ==========================================
+        function renderChannelFilters() {
             const container = document.getElementById('channelFilters');
             container.innerHTML = '';
-            Object.keys(channelData).forEach(ch => {
+            availableChannels.forEach(ch => {
                 const isActive = activeChannels.has(ch);
                 const btn = document.createElement('button');
-                btn.onclick = () => toggleChannel(ch);
+                btn.onclick = () => {
+                    if (activeChannels.has(ch)) {
+                        if (activeChannels.size > 1) activeChannels.delete(ch);
+                    } else {
+                        activeChannels.add(ch);
+                    }
+                    refreshDashboardUI();
+                };
                 btn.className = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 border ${
-                    isActive 
-                    ? 'bg-slate-800 text-white border-slate-600 shadow' 
+                    isActive
+                    ? 'bg-slate-800 text-white border-slate-600 shadow'
                     : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700'
                 }`;
-                btn.innerHTML = `
-                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${channelColors[ch] || '#ccc'}"></span>
-                    ${ch}
-                `;
+                btn.innerHTML = `<span class="w-2.5 h-2.5 rounded-full" style="background-color: ${channelColors[ch] || '#6366f1'}"></span>${ch}`;
                 container.appendChild(btn);
             });
         }
 
-        function toggleChannel(ch) {
-            if (activeChannels.has(ch)) {
-                if (activeChannels.size > 1) activeChannels.delete(ch);
-            } else {
-                activeChannels.add(ch);
-            }
-            initFilters();
-            renderOrUpdateCharts();
-        }
-
         function toggleAllChannels() {
-            const all = Object.keys(channelData);
-            if (activeChannels.size === all.length) {
-                activeChannels = new Set([all[0]]);
+            if (activeChannels.size === availableChannels.length) {
+                activeChannels = new Set([availableChannels[0]]);
             } else {
-                activeChannels = new Set(all);
+                activeChannels = new Set(availableChannels);
             }
-            initFilters();
-            renderOrUpdateCharts();
+            refreshDashboardUI();
         }
 
-        function renderOrUpdateCharts() {
+        function setViewMode(mode) {
+            viewMode = mode;
+            const btnM = document.getElementById('btnModeMonth');
+            const btnD = document.getElementById('btnModeDay');
+            const monthWrapper = document.getElementById('monthFilterWrapper');
+
+            if (mode === 'month') {
+                btnM.className = 'px-4 py-1.5 rounded-md text-xs font-medium transition-all bg-indigo-600 text-white shadow';
+                btnD.className = 'px-4 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white';
+                monthWrapper.classList.add('hidden');
+            } else {
+                btnD.className = 'px-4 py-1.5 rounded-md text-xs font-medium transition-all bg-indigo-600 text-white shadow';
+                btnM.className = 'px-4 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white';
+                monthWrapper.classList.remove('hidden');
+            }
+            renderCharts();
+        }
+
+        function renderMonthFilters() {
+            const container = document.getElementById('monthFilters');
+            container.innerHTML = '';
+            availableMonths.forEach(mKey => {
+                const isActive = activeMonths.has(mKey);
+                const btn = document.createElement('button');
+                btn.onclick = () => {
+                    if (activeMonths.has(mKey)) {
+                        if (activeMonths.size > 1) activeMonths.delete(mKey);
+                    } else {
+                        activeMonths.add(mKey);
+                    }
+                    renderMonthFilters();
+                    renderCharts();
+                };
+                btn.className = `px-3 py-1 rounded-md text-xs font-medium transition-all border ${
+                    isActive
+                    ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50'
+                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700'
+                }`;
+                btn.innerText = mKey;
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleAllMonths() {
+            if (activeMonths.size === availableMonths.length) {
+                activeMonths = new Set([availableMonths[availableMonths.length - 1]]);
+            } else {
+                activeMonths = new Set(availableMonths);
+            }
+            renderMonthFilters();
+            renderCharts();
+        }
+
+        // ==========================================
+        // 7. ПОБУДОВА ГРАФІКІВ (ПО МІСЯЦЯХ ТА ПО ДНЯХ)
+        // ==========================================
+        function renderCharts() {
+            let labels = [];
             const discountDatasets = [];
             const volumeDatasets = [];
             const shareDatasets = [];
 
-            discountDatasets.push({
-                label: 'Загальна знижка бізнесу',
-                data: overallDiscount,
-                borderColor: '#ef4444',
-                borderWidth: 2,
-                borderDash: [5, 5],
-                fill: false,
-                pointRadius: 3
-            });
+            if (viewMode === 'month') {
+                labels = availableMonths;
 
-            activeChannels.forEach(ch => {
-                const data = channelData[ch];
-                const color = channelColors[ch] || '#888';
+                activeChannels.forEach(ch => {
+                    const color = channelColors[ch] || '#6366f1';
+                    const mVols = [];
+                    const mDiscs = [];
+                    const mShares = [];
 
-                discountDatasets.push({
-                    label: ch,
-                    data: data.discount,
-                    borderColor: color,
-                    backgroundColor: color,
-                    tension: 0.3,
-                    fill: false
+                    availableMonths.forEach(mKey => {
+                        const mDays = dailyRecords.filter(r => r.monthKey === mKey);
+                        let volSum = 0;
+                        let weightedDiscSum = 0;
+                        let appsTotalSum = 0;
+                        let weightedShareByAppsSum = 0;
+
+                        mDays.forEach(d => {
+                            const c = d.channels[ch];
+                            if (c) {
+                                if (c.vol > 0) {
+                                    volSum += c.vol;
+                                    weightedDiscSum += c.vol * c.disc;
+                                }
+                                if (d.appsTotal > 0) {
+                                    appsTotalSum += d.appsTotal;
+                                    weightedShareByAppsSum += d.appsTotal * c.share;
+                                }
+                            }
+                        });
+
+                        mVols.push(Math.round(volSum));
+                        mDiscs.push(volSum > 0 ? +(weightedDiscSum / volSum).toFixed(1) : 0);
+
+                        // Місячна частка: точний збіг із підсумком звіту через Applications Total
+                        const monthlyShare = appsTotalSum > 0
+                            ? (weightedShareByAppsSum / appsTotalSum)
+                            : 0;
+                        mShares.push(+monthlyShare.toFixed(2));
+                    });
+
+                    discountDatasets.push({ label: ch, data: mDiscs, borderColor: color, backgroundColor: color, tension: 0.3 });
+                    volumeDatasets.push({ label: ch, data: mVols, backgroundColor: color, borderRadius: 4 });
+                    shareDatasets.push({ label: ch, data: mShares, borderColor: color, backgroundColor: color, tension: 0.3 });
                 });
 
-                volumeDatasets.push({
-                    label: ch,
-                    data: data.volume,
-                    backgroundColor: color,
-                    borderRadius: 4
-                });
+            } else {
+                const filteredDays = dailyRecords.filter(r => activeMonths.has(r.monthKey));
+                labels = filteredDays.map(d => d.shortDate);
 
-                shareDatasets.push({
-                    label: ch,
-                    data: data.share,
-                    borderColor: color,
-                    backgroundColor: color,
-                    tension: 0.3,
-                    fill: false
-                });
-            });
+                activeChannels.forEach(ch => {
+                    const color = channelColors[ch] || '#6366f1';
+                    const dVols = filteredDays.map(d => d.channels[ch]?.vol || 0);
+                    const dDiscs = filteredDays.map(d => +(d.channels[ch]?.disc || 0).toFixed(1));
+                    const dShares = filteredDays.map(d => +(d.channels[ch]?.share || 0).toFixed(2));
 
-            createChart('discountChart', 'line', months, discountDatasets, { ySuffix: '%' });
-            createChart('volumeChart', 'bar', months, volumeDatasets, { stacked: false });
-            createChart('shareChart', 'line', months, shareDatasets, { ySuffix: '%' });
+                    discountDatasets.push({ label: ch, data: dDiscs, borderColor: color, backgroundColor: color, tension: 0.25, pointRadius: 2 });
+                    volumeDatasets.push({ label: ch, data: dVols, backgroundColor: color, borderRadius: 3 });
+                    shareDatasets.push({ label: ch, data: dShares, borderColor: color, backgroundColor: color, tension: 0.25, pointRadius: 2 });
+                });
+            }
+
+            createChart('discountChart', 'line', labels, discountDatasets, '%');
+            createChart('volumeChart', 'bar', labels, volumeDatasets, ' шт.');
+            createChart('shareChart', 'line', labels, shareDatasets, '%');
         }
 
-        function createChart(canvasId, type, labels, datasets, options = {}) {
-            if (charts[canvasId]) {
-                charts[canvasId].destroy();
-            }
+        function createChart(canvasId, type, labels, datasets, suffix) {
+            if (charts[canvasId]) charts[canvasId].destroy();
             const ctx = document.getElementById(canvasId).getContext('2d');
             charts[canvasId] = new Chart(ctx, {
                 type: type,
@@ -379,29 +587,20 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: { labels: { color: '#94a3b8', font: { size: 12 } } },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y + (options.ySuffix || '');
-                                    }
-                                    return label;
-                                }
+                                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}${suffix}`
                             }
                         }
                     },
                     scales: {
-                        x: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', maxRotation: 45 } },
                         y: {
                             grid: { color: '#1e293b' },
-                            ticks: {
-                                color: '#94a3b8',
-                                callback: value => value + (options.ySuffix || '')
-                            }
+                            ticks: { color: '#94a3b8', callback: val => val + suffix }
                         }
                     }
                 }
@@ -411,9 +610,7 @@
         function updateStatus(type, text) {
             const badge = document.getElementById('statusBadge');
             const dot = document.getElementById('statusDot');
-            const label = document.getElementById('statusText');
-            label.innerText = text;
-
+            document.getElementById('statusText').innerText = text;
             if (type === 'live') {
                 dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
                 badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
@@ -426,12 +623,9 @@
             }
         }
 
-        // Ініціалізація перевірки входу при відкритті сторінки
         checkAuth();
         setInterval(() => {
-            if (sessionStorage.getItem('dashboard_auth') === 'true') {
-                fetchData();
-            }
+            if (sessionStorage.getItem('dashboard_auth') === 'true') fetchAllData();
         }, 120000);
     </script>
 </body>
