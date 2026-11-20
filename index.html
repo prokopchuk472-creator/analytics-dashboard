@@ -133,8 +133,8 @@
         // ==========================================
         // 1. НАЛАШТУВАННЯ ЛОГІНУ ТА ПОСИЛАНЬ
         // ==========================================
-        const DEFAULT_LOGIN = "admin_1997";
-        const DEFAULT_PASSWORD = "yourpass1997";
+        const DEFAULT_LOGIN = "admin";
+        const DEFAULT_PASSWORD = "yourpassword123";
 
         const URL_VOLUME           = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZk6CZxyj5wN8FFKLl95y5fGH8aAR63IY4OGaxpf4D6-ztZZsnmSSLyjVQGSn_UmLL1ostR9L-VNlq/pub?gid=318284391&single=true&output=csv';
         const URL_DISCOUNT         = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZk6CZxyj5wN8FFKLl95y5fGH8aAR63IY4OGaxpf4D6-ztZZsnmSSLyjVQGSn_UmLL1ostR9L-VNlq/pub?gid=1308238343&single=true&output=csv';
@@ -216,4 +216,614 @@
             return new Promise((resolve, reject) => {
                 Papa.parse(url, {
                     download: true,
-                    header: true
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: res => resolve(res.data),
+                    error: err => reject(err)
+                });
+            });
+        }
+
+        async function fetchAllData() {
+            updateStatus('loading', 'Завантаження 4 таблиць...');
+            try {
+                const [volRows, discRows, shareRows, overallDiscRows] = await Promise.all([
+                    parseCsvUrl(URL_VOLUME),
+                    parseCsvUrl(URL_DISCOUNT),
+                    parseCsvUrl(URL_SHARE),
+                    parseCsvUrl(URL_OVERALL_DISCOUNT)
+                ]);
+
+                mergeAndProcessData(volRows, discRows, shareRows, overallDiscRows);
+                updateStatus('live', `Live (Оновлено ${new Date().toLocaleTimeString()})`);
+            } catch (err) {
+                console.error('Помилка завантаження:', err);
+                updateStatus('error', 'Помилка завантаження CSV');
+            }
+        }
+
+        function normalizeHeader(header) {
+            return String(header || '').replace(/%/g, '').replace(/\s+/g, ' ').trim();
+        }
+
+        function normalizeRow(row) {
+            const norm = {};
+            Object.keys(row).forEach(k => {
+                const cleanKey = normalizeHeader(k);
+                if (cleanKey) norm[cleanKey] = row[k];
+            });
+            return norm;
+        }
+
+        function parseNumber(val) {
+            if (val === undefined || val === null) return 0;
+            const str = String(val).trim();
+            if (str === '-' || str === '' || str === '#DIV/0!' || str === '#N/A') return 0;
+            const cleaned = str.replace('%', '').replace(/\s/g, '').replace(',', '.');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // Приведення дат "15 лист. 2026 р." та "лист. 15, 2026" до єдиного ключа "15|лист|2026"
+        function makeCanonicalDateKey(dateStr) {
+            const cleaned = String(dateStr || '')
+                .toLowerCase()
+                .replace(/р\./g, '')
+                .replace(/[.,]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const parts = cleaned.split(' ');
+            if (parts.length < 3) return cleaned;
+
+            // Варіант 1: "15 лист 2026"
+            if (/^\d+$/.test(parts[0])) {
+                return `${parseInt(parts[0], 10)}|${parts[1]}|${parts[2]}`;
+            }
+            // Варіант 2: "лист 15 2026"
+            if (/^\d+$/.test(parts[1])) {
+                return `${parseInt(parts[1], 10)}|${parts[0]}|${parts[2]}`;
+            }
+            return cleaned;
+        }
+
+        function extractMonthKey(dateStr) {
+            const cKey = makeCanonicalDateKey(dateStr);
+            const parts = cKey.split('|');
+            if (parts.length === 3) {
+                return `${parts[1]}. ${parts[2]}`;
+            }
+            return dateStr;
+        }
+
+        function extractShortDate(dateStr) {
+            const cKey = makeCanonicalDateKey(dateStr);
+            const parts = cKey.split('|');
+            if (parts.length === 3) {
+                return `${parts[0]} ${parts[1]}.`;
+            }
+            return dateStr;
+        }
+
+        // Розрахунок точного зваженого чисельника та знаменника зі звіту "Promo Codes by discount"
+        function calculateOverallDiscountForRow(row) {
+            if (!row) return { weightedSum: 0, promoCount: 0, avg: 0 };
+            let weightedSum = 0;
+            let sumTierCounts = 0;
+
+            Object.keys(row).forEach(key => {
+                // Шукаємо колонки номіналів знижок ("10", "15", "20", ..., "90")
+                if (/^\d+(\.\d+)?$/.test(key)) {
+                    const tierPercent = parseFloat(key);
+                    if (tierPercent > 0 && tierPercent <= 100) {
+                        const count = parseNumber(row[key]);
+                        weightedSum += count * tierPercent;
+                        sumTierCounts += count;
+                    }
+                }
+            });
+
+            const explicitPromoCount = parseNumber(row['Applications with PromoCodes'] || row['Applications with PromoCode']);
+            const promoCount = explicitPromoCount > 0 ? explicitPromoCount : sumTierCounts;
+            const avg = promoCount > 0 ? (weightedSum / promoCount) : parseNumber(row['Average Discount']);
+
+            return { weightedSum, promoCount, avg };
+        }
+
+        function mergeAndProcessData(volRowsRaw, discRowsRaw, shareRowsRaw, overallDiscRowsRaw) {
+            const volRows = volRowsRaw.map(normalizeRow);
+            const discRows = discRowsRaw.map(normalizeRow);
+            const shareRows = shareRowsRaw.map(normalizeRow);
+            const overallRows = overallDiscRowsRaw.map(normalizeRow);
+
+            const discMap = {};
+            const shareMap = {};
+            const overallMap = {};
+
+            discRows.forEach(r => {
+                const rawD = String(r['Date'] || Object.values(r)[0] || '').trim();
+                if (rawD) discMap[makeCanonicalDateKey(rawD)] = r;
+            });
+
+            shareRows.forEach(r => {
+                const rawD = String(r['Date'] || Object.values(r)[0] || '').trim();
+                if (rawD) shareMap[makeCanonicalDateKey(rawD)] = r;
+            });
+
+            overallRows.forEach(r => {
+                const rawD = String(r['Date'] || Object.values(r)[0] || '').trim();
+                if (rawD) overallMap[makeCanonicalDateKey(rawD)] = r;
+            });
+
+            dailyRecords = [];
+            const channelTotalVol = {};
+            const monthsSet = new Set();
+
+            const allColsSet = new Set();
+            [volRows[0], discRows[0], shareRows[0]].forEach(sample => {
+                if (!sample) return;
+                Object.keys(sample).forEach(col => {
+                    if (!IGNORED_COLS.has(col.toLowerCase())) allColsSet.add(col);
+                });
+            });
+
+            const allCols = Array.from(allColsSet);
+            allCols.forEach(ch => channelTotalVol[ch] = 0);
+
+            const chronologicalRows = [...volRows].reverse();
+
+            chronologicalRows.forEach(vRow => {
+                const dateStr = String(vRow['Date'] || Object.values(vRow)[0] || '').trim();
+                if (!dateStr || dateStr.toLowerCase().includes('підс') || dateStr.toLowerCase().includes('total')) return;
+
+                const cKey = makeCanonicalDateKey(dateStr);
+                const dRow = discMap[cKey] || {};
+                const sRow = shareMap[cKey] || {};
+                const oRow = overallMap[cKey] || null;
+
+                const monthKey = extractMonthKey(dateStr);
+                monthsSet.add(monthKey);
+
+                const appsTotal = parseNumber(vRow['Applications Total'] || dRow['Applications Total'] || sRow['Applications Total']);
+                const overallStats = calculateOverallDiscountForRow(oRow);
+
+                const channelsObj = {};
+
+                allCols.forEach(ch => {
+                    const vol = parseNumber(vRow[ch]);
+                    let disc = parseNumber(dRow[ch]);
+                    let share = parseNumber(sRow[ch]);
+
+                    if (disc > 0 && disc <= 1) disc = disc * 100;
+                    if (share > 0 && share <= 1) share = share * 100;
+
+                    channelTotalVol[ch] += vol;
+                    channelsObj[ch] = { vol, disc, share };
+                });
+
+                dailyRecords.push({
+                    dateStr,
+                    canonicalKey: cKey,
+                    shortDate: extractShortDate(dateStr),
+                    monthKey,
+                    appsTotal,
+                    overallStats,
+                    channels: channelsObj
+                });
+            });
+
+            availableChannels = allCols.filter(ch => channelTotalVol[ch] > 0);
+
+            if (activeChannels.size === 0) {
+                availableChannels.forEach(ch => activeChannels.add(ch));
+            } else {
+                activeChannels = new Set([...activeChannels].filter(ch => availableChannels.includes(ch)));
+                if (activeChannels.size === 0) availableChannels.forEach(ch => activeChannels.add(ch));
+            }
+
+            availableMonths = Array.from(monthsSet);
+            if (activeMonths.size === 0 && availableMonths.length > 0) {
+                activeMonths.add(availableMonths[availableMonths.length - 1]);
+            }
+
+            syncDaysForActiveMonths(true);
+            refreshDashboardUI();
+        }
+
+        function syncDaysForActiveMonths(selectAll = false) {
+            const validDays = dailyRecords.filter(r => activeMonths.has(r.monthKey)).map(r => r.canonicalKey);
+            if (selectAll) {
+                activeDates = new Set(validDays);
+            } else {
+                activeDates = new Set([...activeDates].filter(d => validDays.includes(d)));
+                if (activeDates.size === 0) validDays.forEach(d => activeDates.add(d));
+            }
+        }
+
+        function refreshDashboardUI() {
+            renderChannelFilters();
+            renderMonthFilters();
+            renderDayFilters();
+            renderSummaryCards();
+            renderCharts();
+        }
+
+        // ==========================================
+        // 5. КАРТКИ З ТОЧНОЮ ЗНИЖКОЮ БІЗНЕСУ ТА КАНАЛІВ
+        // ==========================================
+        function renderSummaryCards() {
+            const container = document.getElementById('summaryCards');
+            container.innerHTML = '';
+
+            availableMonths.forEach(mKey => {
+                const monthDays = dailyRecords.filter(r => {
+                    if (r.monthKey !== mKey) return false;
+                    if (viewMode === 'day' && activeMonths.has(mKey)) {
+                        return activeDates.has(r.canonicalKey);
+                    }
+                    return true;
+                });
+
+                let selectedVolSum = 0;
+                let selectedDiscNumerator = 0;
+
+                let businessWeightedSum = 0;
+                let businessPromoCount = 0;
+
+                monthDays.forEach(day => {
+                    // 1. По вибраних каналах
+                    activeChannels.forEach(ch => {
+                        const cData = day.channels[ch];
+                        if (cData && cData.vol > 0) {
+                            selectedVolSum += cData.vol;
+                            selectedDiscNumerator += (cData.vol * cData.disc);
+                        }
+                    });
+
+                    // 2. По всьому бізнесу зі звіту "Promo Codes by discount"
+                    if (day.overallStats && day.overallStats.promoCount > 0) {
+                        businessWeightedSum += day.overallStats.weightedSum;
+                        businessPromoCount += day.overallStats.promoCount;
+                    }
+                });
+
+                const selectedAvgDiscount = selectedVolSum > 0
+                    ? (selectedDiscNumerator / selectedVolSum).toFixed(1)
+                    : '0.0';
+
+                const businessAvgDiscount = businessPromoCount > 0
+                    ? (businessWeightedSum / businessPromoCount).toFixed(1)
+                    : null;
+
+                const card = document.createElement('div');
+                card.className = 'bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between gap-3';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 pt-0.5">${mKey}</span>
+                        <div class="flex flex-col items-end gap-1">
+                            ${businessAvgDiscount !== null ? `
+                                <span class="text-[11px] px-2 py-0.5 rounded bg-rose-500/10 text-rose-300 font-medium border border-rose-500/20" title="Загальна середня знижка бізнесу (звіт Promo Codes by discount)">
+                                    Бізнес: ${businessAvgDiscount}%
+                                </span>
+                            ` : ''}
+                            <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 font-medium border border-indigo-500/20" title="Середньозважена знижка по вибраних у фільтрі каналах">
+                                Вибрані: ${selectedAvgDiscount}%
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-white">${Math.round(selectedVolSum).toLocaleString('uk-UA')} <span class="text-xs font-normal text-slate-400">шт.</span></div>
+                        <div class="text-xs text-slate-400 mt-1">
+                            Вибрані канали (${monthDays.length} дн.)${businessPromoCount > 0 ? ` · Бізнес: ${Math.round(businessPromoCount).toLocaleString('uk-UA')} шт.` : ''}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // ==========================================
+        // 6. ФІЛЬТРИ КАНАЛІВ, МІСЯЦІВ ТА ДНІВ
+        // ==========================================
+        function renderChannelFilters() {
+            const container = document.getElementById('channelFilters');
+            container.innerHTML = '';
+            availableChannels.forEach(ch => {
+                const isActive = activeChannels.has(ch);
+                const btn = document.createElement('button');
+                btn.onclick = () => {
+                    if (activeChannels.has(ch)) {
+                        if (activeChannels.size > 1) activeChannels.delete(ch);
+                    } else {
+                        activeChannels.add(ch);
+                    }
+                    refreshDashboardUI();
+                };
+                btn.className = `px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 border ${
+                    isActive
+                    ? 'bg-slate-800 text-white border-slate-600 shadow'
+                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700'
+                }`;
+                btn.innerHTML = `<span class="w-2.5 h-2.5 rounded-full" style="background-color: ${channelColors[ch] || '#6366f1'}"></span>${ch}`;
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleAllChannels() {
+            if (activeChannels.size === availableChannels.length) {
+                activeChannels = new Set([availableChannels[0]]);
+            } else {
+                activeChannels = new Set(availableChannels);
+            }
+            refreshDashboardUI();
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            const btnM = document.getElementById('btnModeMonth');
+            const btnD = document.getElementById('btnModeDay');
+            const monthWrapper = document.getElementById('monthFilterWrapper');
+            const dayWrapper = document.getElementById('dayFilterWrapper');
+
+            if (mode === 'month') {
+                btnM.className = 'px-4 py-1.5 rounded-md text-xs font-medium transition-all bg-indigo-600 text-white shadow';
+                btnD.className = 'px-4 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white';
+                monthWrapper.classList.add('hidden');
+                dayWrapper.classList.add('hidden');
+            } else {
+                btnD.className = 'px-4 py-1.5 rounded-md text-xs font-medium transition-all bg-indigo-600 text-white shadow';
+                btnM.className = 'px-4 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white';
+                monthWrapper.classList.remove('hidden');
+                dayWrapper.classList.remove('hidden');
+                syncDaysForActiveMonths(true);
+            }
+            refreshDashboardUI();
+        }
+
+        function renderMonthFilters() {
+            const container = document.getElementById('monthFilters');
+            container.innerHTML = '';
+            availableMonths.forEach(mKey => {
+                const isActive = activeMonths.has(mKey);
+                const btn = document.createElement('button');
+                btn.onclick = () => {
+                    if (activeMonths.has(mKey)) {
+                        if (activeMonths.size > 1) activeMonths.delete(mKey);
+                    } else {
+                        activeMonths.add(mKey);
+                    }
+                    syncDaysForActiveMonths(true);
+                    refreshDashboardUI();
+                };
+                btn.className = `px-3 py-1 rounded-md text-xs font-medium transition-all border ${
+                    isActive
+                    ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50'
+                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700'
+                }`;
+                btn.innerText = mKey;
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleAllMonths() {
+            if (activeMonths.size === availableMonths.length) {
+                activeMonths = new Set([availableMonths[availableMonths.length - 1]]);
+            } else {
+                activeMonths = new Set(availableMonths);
+            }
+            syncDaysForActiveMonths(true);
+            refreshDashboardUI();
+        }
+
+        function renderDayFilters() {
+            const container = document.getElementById('dayFilters');
+            container.innerHTML = '';
+            const daysOfSelectedMonths = dailyRecords.filter(r => activeMonths.has(r.monthKey));
+
+            daysOfSelectedMonths.forEach(day => {
+                const isActive = activeDates.has(day.canonicalKey);
+                const btn = document.createElement('button');
+                btn.onclick = () => {
+                    if (activeDates.has(day.canonicalKey)) {
+                        if (activeDates.size > 1) activeDates.delete(day.canonicalKey);
+                    } else {
+                        activeDates.add(day.canonicalKey);
+                    }
+                    refreshDashboardUI();
+                };
+                btn.className = `px-2.5 py-1 rounded text-xs font-medium transition-all border ${
+                    isActive
+                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                    : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700'
+                }`;
+                btn.innerText = day.shortDate;
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleAllDays() {
+            const allDays = dailyRecords.filter(r => activeMonths.has(r.monthKey)).map(r => r.canonicalKey);
+            if (activeDates.size === allDays.length) {
+                activeDates = new Set([allDays[allDays.length - 1]]);
+            } else {
+                activeDates = new Set(allDays);
+            }
+            refreshDashboardUI();
+        }
+
+        function selectLastNDays(n) {
+            const allDays = dailyRecords.filter(r => activeMonths.has(r.monthKey)).map(r => r.canonicalKey);
+            activeDates = new Set(allDays.slice(-n));
+            refreshDashboardUI();
+        }
+
+        // ==========================================
+        // 7. ПОБУДОВА ГРАФІКІВ
+        // ==========================================
+        function renderCharts() {
+            let labels = [];
+            const discountDatasets = [];
+            const volumeDatasets = [];
+            const shareDatasets = [];
+
+            if (viewMode === 'month') {
+                labels = availableMonths;
+
+                // Лінія загальної знижки бізнесу по місяцях
+                const monthlyBusinessDiscount = availableMonths.map(mKey => {
+                    const mDays = dailyRecords.filter(r => r.monthKey === mKey);
+                    let wSum = 0;
+                    let pCount = 0;
+                    mDays.forEach(d => {
+                        if (d.overallStats && d.overallStats.promoCount > 0) {
+                            wSum += d.overallStats.weightedSum;
+                            pCount += d.overallStats.promoCount;
+                        }
+                    });
+                    return pCount > 0 ? +(wSum / pCount).toFixed(1) : null;
+                });
+
+                if (monthlyBusinessDiscount.some(v => v !== null)) {
+                    discountDatasets.push({
+                        label: 'Загальна знижка бізнесу',
+                        data: monthlyBusinessDiscount,
+                        borderColor: '#f43f5e',
+                        backgroundColor: '#f43f5e',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        pointRadius: 3
+                    });
+                }
+
+                activeChannels.forEach(ch => {
+                    const color = channelColors[ch] || '#6366f1';
+                    const mVols = [];
+                    const mDiscs = [];
+                    const mShares = [];
+
+                    availableMonths.forEach(mKey => {
+                        const mDays = dailyRecords.filter(r => r.monthKey === mKey);
+                        let volSum = 0;
+                        let weightedDiscSum = 0;
+                        let appsTotalSum = 0;
+                        let weightedShareByAppsSum = 0;
+
+                        mDays.forEach(d => {
+                            const c = d.channels[ch];
+                            if (c) {
+                                if (c.vol > 0) {
+                                    volSum += c.vol;
+                                    weightedDiscSum += c.vol * c.disc;
+                                }
+                                if (d.appsTotal > 0) {
+                                    appsTotalSum += d.appsTotal;
+                                    weightedShareByAppsSum += d.appsTotal * c.share;
+                                }
+                            }
+                        });
+
+                        mVols.push(Math.round(volSum));
+                        mDiscs.push(volSum > 0 ? +(weightedDiscSum / volSum).toFixed(1) : 0);
+
+                        const monthlyShare = appsTotalSum > 0
+                            ? (weightedShareByAppsSum / appsTotalSum)
+                            : 0;
+                        mShares.push(+monthlyShare.toFixed(2));
+                    });
+
+                    discountDatasets.push({ label: ch, data: mDiscs, borderColor: color, backgroundColor: color, tension: 0.3 });
+                    volumeDatasets.push({ label: ch, data: mVols, backgroundColor: color, borderRadius: 4 });
+                    shareDatasets.push({ label: ch, data: mShares, borderColor: color, backgroundColor: color, tension: 0.3 });
+                });
+
+            } else {
+                const filteredDays = dailyRecords.filter(r => activeMonths.has(r.monthKey) && activeDates.has(r.canonicalKey));
+                labels = filteredDays.map(d => d.shortDate);
+
+                // Лінія загальної знижки бізнесу по днях
+                const dailyBusinessDiscount = filteredDays.map(d =>
+                    (d.overallStats && d.overallStats.promoCount > 0) ? +d.overallStats.avg.toFixed(1) : null
+                );
+
+                if (dailyBusinessDiscount.some(v => v !== null)) {
+                    discountDatasets.push({
+                        label: 'Загальна знижка бізнесу',
+                        data: dailyBusinessDiscount,
+                        borderColor: '#f43f5e',
+                        backgroundColor: '#f43f5e',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.25,
+                        pointRadius: 2.5
+                    });
+                }
+
+                activeChannels.forEach(ch => {
+                    const color = channelColors[ch] || '#6366f1';
+                    const dVols = filteredDays.map(d => d.channels[ch]?.vol || 0);
+                    const dDiscs = filteredDays.map(d => +(d.channels[ch]?.disc || 0).toFixed(1));
+                    const dShares = filteredDays.map(d => +(d.channels[ch]?.share || 0).toFixed(2));
+
+                    discountDatasets.push({ label: ch, data: dDiscs, borderColor: color, backgroundColor: color, tension: 0.25, pointRadius: 2.5 });
+                    volumeDatasets.push({ label: ch, data: dVols, backgroundColor: color, borderRadius: 3 });
+                    shareDatasets.push({ label: ch, data: dShares, borderColor: color, backgroundColor: color, tension: 0.25, pointRadius: 2.5 });
+                });
+            }
+
+            createChart('discountChart', 'line', labels, discountDatasets, '%');
+            createChart('volumeChart', 'bar', labels, volumeDatasets, ' шт.');
+            createChart('shareChart', 'line', labels, shareDatasets, '%');
+        }
+
+        function createChart(canvasId, type, labels, datasets, suffix) {
+            if (charts[canvasId]) charts[canvasId].destroy();
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            charts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 12 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}${suffix}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', maxRotation: 45 } },
+                        y: {
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8', callback: val => val + suffix }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStatus(type, text) {
+            const badge = document.getElementById('statusBadge');
+            const dot = document.getElementById('statusDot');
+            document.getElementById('statusText').innerText = text;
+            if (type === 'live') {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            } else if (type === 'loading') {
+                dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-ping';
+                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20';
+            }
+        }
+
+        checkAuth();
+        setInterval(() => {
+            if (sessionStorage.getItem('dashboard_auth') === 'true') fetchAllData();
+        }, 120000);
+    </script>
+</body>
+</html>
