@@ -18,7 +18,7 @@
         }
     </script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans p-4 md:p-8">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
 
     <!-- LOGIN SCREEN -->
     <div id="loginOverlay" class="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-50">
@@ -43,90 +43,219 @@
         </div>
     </div>
 
-    <!-- MAIN DASHBOARD CONTENT -->
-    <div id="dashboardContent" class="max-w-7xl mx-auto space-y-6 hidden">
-        <!-- Header -->
-        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
-            <div>
-                <h1 class="text-2xl font-bold tracking-tight text-white">Аналітична панель: Промокоди та Видачі (Live)</h1>
-                <p class="text-slate-400 text-sm mt-1">Деталізована аналітика по каналах, місяцях та днях</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <span id="statusBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
-                    <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
-                    <span id="statusText">Завантаження...</span>
-                </span>
-                <button onclick="fetchAllData()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-all shadow-md">🔄 Оновити</button>
-                <button onclick="handleLogout()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg border border-slate-700 transition-all">Вийти</button>
-            </div>
-        </header>
+    <!-- MAIN APP LAYOUT (SIDEBAR + CONTENT) -->
+    <div id="dashboardContent" class="min-h-screen flex flex-col lg:flex-row hidden">
 
-        <!-- Dynamic Summary Cards -->
-        <div id="summaryCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
-
-        <!-- Controls & Filters Section -->
-        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-5">
-            <!-- 1. Channel Filters -->
-            <div class="space-y-2.5">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">1. Фільтр каналів (перераховує картки та графіки):</h2>
-                    <button onclick="toggleAllChannels()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Вибрати всі / Скинути</button>
+        <!-- LEFT SIDEBAR NAVIGATION -->
+        <aside class="w-full lg:w-72 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 p-5 flex flex-col justify-between shrink-0">
+            <div class="space-y-6">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">BI</div>
+                        <span class="font-bold text-white tracking-tight">Promo Analytics</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1.5">Live Google Sheets</p>
                 </div>
-                <div id="channelFilters" class="flex flex-wrap gap-2"></div>
+
+                <!-- Navigation Tabs -->
+                <nav class="space-y-1.5">
+                    <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-3 pb-1">Аналітичні розділи</div>
+                    
+                    <button onclick="switchTab('overview')" id="tab-overview" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all bg-indigo-600 text-white shadow">
+                        <span>📊</span>
+                        <span class="text-left">Основний огляд</span>
+                    </button>
+
+                    <button onclick="switchTab('forecast')" id="tab-forecast" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60">
+                        <span>🔮</span>
+                        <span class="text-left">Прогноз знижки (MTD)</span>
+                    </button>
+
+                    <button onclick="switchTab('tiers')" id="tab-tiers" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60">
+                        <span>🏷️</span>
+                        <span class="text-left">Номінали (10%–90%)</span>
+                    </button>
+
+                    <button onclick="switchTab('contribution')" id="tab-contribution" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60">
+                        <span>⚖️</span>
+                        <span class="text-left">Внесок у знижку</span>
+                    </button>
+
+                    <button onclick="switchTab('penetration')" id="tab-penetration" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60">
+                        <span>🎯</span>
+                        <span class="text-left">Проникнення промо</span>
+                    </button>
+                </nav>
             </div>
 
-            <hr class="border-slate-800">
+            <!-- Bottom Status & Controls -->
+            <div class="pt-6 mt-6 border-t border-slate-800 space-y-3">
+                <div id="statusBadge" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-slate-950 text-slate-400 border border-slate-800">
+                    <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
+                    <span id="statusText" class="truncate">Завантаження...</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="fetchAllData()" class="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-all">🔄 Оновити</button>
+                    <button onclick="handleLogout()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 transition-all">Вийти</button>
+                </div>
+            </div>
+        </aside>
 
-            <!-- 2. View Mode & Month Selector -->
-            <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                <div class="space-y-2 shrink-0">
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">2. Деталізація графіків:</h2>
-                    <div class="inline-flex rounded-lg bg-slate-950 p-1 border border-slate-800">
-                        <button id="btnModeMonth" onclick="setViewMode('month')" class="px-4 py-1.5 rounded-md text-xs font-medium transition-all bg-indigo-600 text-white shadow">По місяцях</button>
-                        <button id="btnModeDay" onclick="setViewMode('day')" class="px-4 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white">По днях (детально)</button>
+        <!-- RIGHT MAIN CONTENT AREA -->
+        <main class="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+
+            <!-- Dynamic Summary Cards (Always visible at top) -->
+            <div id="summaryCards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+
+            <!-- Global Filters Bar (Channels + Period Mode + Months + Days) -->
+            <div id="globalFiltersBox" class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                <!-- Channel Filters -->
+                <div id="channelFilterSection" class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Фільтр каналів:</h2>
+                        <button onclick="toggleAllChannels()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Вибрати всі / Скинути</button>
+                    </div>
+                    <div id="channelFilters" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <hr id="filterDivider" class="border-slate-800">
+
+                <!-- View Mode & Month Selector -->
+                <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div id="viewModeSection" class="space-y-2 shrink-0">
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Деталізація:</h2>
+                        <div class="inline-flex rounded-lg bg-slate-950 p-1 border border-slate-800">
+                            <button id="btnModeMonth" onclick="setViewMode('month')" class="px-4 py-1.5 rounded-md text-xs font-medium transition-all bg-indigo-600 text-white shadow">По місяцях</button>
+                            <button id="btnModeDay" onclick="setViewMode('day')" class="px-4 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white">По днях (детально)</button>
+                        </div>
+                    </div>
+
+                    <!-- Multi-Month Filter -->
+                    <div id="monthFilterWrapper" class="space-y-2 flex-1 hidden">
+                        <div class="flex items-center justify-between gap-4">
+                            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Оберіть місяці:</h2>
+                            <button onclick="toggleAllMonths()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Всі місяці</button>
+                        </div>
+                        <div id="monthFilters" class="flex flex-wrap gap-2"></div>
                     </div>
                 </div>
 
-                <!-- Multi-Month Filter -->
-                <div id="monthFilterWrapper" class="space-y-2 flex-1 hidden">
+                <!-- Day Selector -->
+                <div id="dayFilterWrapper" class="space-y-2 pt-2 border-t border-slate-800/80 hidden">
                     <div class="flex items-center justify-between gap-4">
-                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Оберіть місяці:</h2>
-                        <button onclick="toggleAllMonths()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Всі місяці</button>
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Оберіть конкретні дні:</h2>
+                        <div class="flex items-center gap-3">
+                            <button onclick="selectLastNDays(7)" class="text-xs text-slate-400 hover:text-white font-medium">Останні 7 днів</button>
+                            <button onclick="toggleAllDays()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Всі дні / Скинути</button>
+                        </div>
                     </div>
-                    <div id="monthFilters" class="flex flex-wrap gap-2"></div>
+                    <div id="dayFilters" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1"></div>
                 </div>
             </div>
 
-            <!-- 3. Day Selector (Visible in 'day' mode) -->
-            <div id="dayFilterWrapper" class="space-y-2.5 pt-2 border-t border-slate-800/80 hidden">
-                <div class="flex items-center justify-between gap-4">
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">3. Оберіть конкретні дні вибраних місяців:</h2>
-                    <div class="flex items-center gap-3">
-                        <button onclick="selectLastNDays(7)" class="text-xs text-slate-400 hover:text-white font-medium">Останні 7 днів</button>
-                        <button onclick="toggleAllDays()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Всі дні / Скинути</button>
+            <!-- ========================================================= -->
+            <!-- VIEW 1: OVERVIEW (REORDERED CHARTS AS REQUESTED)          -->
+            <!-- ========================================================= -->
+            <section id="view-overview" class="space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 1. Share Chart -->
+                    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                        <h2 class="text-base font-semibold text-white">1. Частка видач по каналах (%)</h2>
+                        <div class="relative min-h-[320px]"><canvas id="shareChart"></canvas></div>
+                    </div>
+
+                    <!-- 2. Volume Chart -->
+                    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                        <h2 class="text-base font-semibold text-white">2. Кількість видач по каналах (шт.)</h2>
+                        <div class="relative min-h-[320px]"><canvas id="volumeChart"></canvas></div>
+                    </div>
+
+                    <!-- 3. Discount Chart (Full width at bottom) -->
+                    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 lg:col-span-2">
+                        <h2 class="text-base font-semibold text-white">3. Динаміка середньої знижки (%) по каналах</h2>
+                        <div class="relative min-h-[340px]"><canvas id="discountChart"></canvas></div>
                     </div>
                 </div>
-                <div id="dayFilters" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1"></div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Charts Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
-                <h2 class="text-base font-semibold text-white">1. Динаміка середньої знижки (%) по каналах</h2>
-                <div class="relative min-h-[320px]"><canvas id="discountChart"></canvas></div>
-            </div>
+            <!-- ========================================================= -->
+            <!-- VIEW 2: FORECAST (MTD + END OF MONTH PROJECTION)          -->
+            <!-- ========================================================= -->
+            <section id="view-forecast" class="space-y-6 hidden">
+                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-white">Прогноз середньої знижки на кінець місяця (MTD + Прогноз)</h2>
+                            <p class="text-xs text-slate-400 mt-1">Накопичена середня знижка з 1-го числа та прогноз закриття місяця за трендом останніх 7 днів</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400">Місяць:</span>
+                            <select id="forecastMonthSelect" onchange="renderForecastView()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"></select>
+                        </div>
+                    </div>
 
-            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
-                <h2 class="text-base font-semibold text-white">2. Кількість видач по каналах (шт.)</h2>
-                <div class="relative min-h-[320px]"><canvas id="volumeChart"></canvas></div>
-            </div>
+                    <!-- Forecast KPI Mini Cards -->
+                    <div id="forecastKpis" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
 
-            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 lg:col-span-2">
-                <h2 class="text-base font-semibold text-white">3. Частка видач по каналах (%)</h2>
-                <div class="relative min-h-[320px]"><canvas id="shareChart"></canvas></div>
-            </div>
-        </div>
+                    <div class="relative min-h-[360px]">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================= -->
+            <!-- VIEW 3: DISCOUNT TIERS DISTRIBUTION (10% - 90%)           -->
+            <!-- ========================================================= -->
+            <section id="view-tiers" class="space-y-6 hidden">
+                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-white">Розподіл видач за номіналами знижок (10% – 90%)</h2>
+                            <p class="text-xs text-slate-400 mt-1">Кількість виданих позик у розрізі кожного номіналу промокоду (за вибраний період)</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400">Період:</span>
+                            <select id="tiersMonthSelect" onchange="renderTiersView()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"></select>
+                        </div>
+                    </div>
+
+                    <div class="relative min-h-[380px]">
+                        <canvas id="tiersChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================= -->
+            <!-- VIEW 4: CHANNEL CONTRIBUTION TO DISCOUNT (MARGIN IMPACT)  -->
+            <!-- ========================================================= -->
+            <section id="view-contribution" class="space-y-6 hidden">
+                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Внесок каналів у «вартість» знижки (Індекс тиску на маржу)</h2>
+                        <p class="text-xs text-slate-400 mt-1">Скільки відсоткових пунктів до загальної середньої знижки бізнесу додає кожен канал (Частка × Знижка каналу)</p>
+                    </div>
+                    <div class="relative min-h-[380px]">
+                        <canvas id="contributionChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================= -->
+            <!-- VIEW 5: PROMO PENETRATION RATE (%)                        -->
+            <!-- ========================================================= -->
+            <section id="view-penetration" class="space-y-6 hidden">
+                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Проникнення промокодів (Promo Penetration Rate, %) vs Середня знижка</h2>
+                        <p class="text-xs text-slate-400 mt-1">Частка заявок із промокодом від усіх заявок бізнесу у порівнянні з рівнем середньої знижки</p>
+                    </div>
+                    <div class="relative min-h-[380px]">
+                        <canvas id="penetrationChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+        </main>
     </div>
 
     <script>
@@ -151,7 +280,10 @@
         let activeMonths = new Set();
         let activeDates = new Set();
         let viewMode = 'month';
+        let currentTab = 'overview';
         let charts = {};
+
+        const DISCOUNT_TIERS = ['10', '15', '20', '25', '30', '35', '40', '45', '50', '55', '60', '65', '70', '75', '78', '80', '85', '90'];
 
         const channelColors = {
             'SMS': '#3b82f6',
@@ -182,7 +314,7 @@
         ]);
 
         // ==========================================
-        // 3. АВТОРИЗАЦІЯ
+        // 3. АВТОРИЗАЦІЯ ТА НАВІГАЦІЯ
         // ==========================================
         function checkAuth() {
             const isAuth = sessionStorage.getItem('dashboard_auth') === 'true';
@@ -209,6 +341,37 @@
             checkAuth();
         }
 
+        function switchTab(tabId) {
+            currentTab = tabId;
+            // Оновлюємо стилі кнопок меню
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = 'nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800/60';
+            });
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = 'nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all bg-indigo-600 text-white shadow';
+            }
+
+            // Ховаємо/показуємо секції
+            ['overview', 'forecast', 'tiers', 'contribution', 'penetration'].forEach(id => {
+                document.getElementById(`view-${id}`).classList.toggle('hidden', id !== tabId);
+            });
+
+            // Ховаємо глобальні фільтри там, де є свій вибір місяця (forecast, tiers)
+            const hideGlobalFilters = (tabId === 'forecast' || tabId === 'tiers');
+            document.getElementById('globalFiltersBox').classList.toggle('hidden', hideGlobalFilters);
+
+            renderActiveTab();
+        }
+
+        function renderActiveTab() {
+            if (currentTab === 'overview') renderOverviewCharts();
+            if (currentTab === 'forecast') renderForecastView();
+            if (currentTab === 'tiers') renderTiersView();
+            if (currentTab === 'contribution') renderContributionChart();
+            if (currentTab === 'penetration') renderPenetrationChart();
+        }
+
         // ==========================================
         // 4. ЗАВАНТАЖЕННЯ ТА ПАРСИНГ 4 ТАБЛИЦЬ
         // ==========================================
@@ -225,7 +388,7 @@
         }
 
         async function fetchAllData() {
-            updateStatus('loading', 'Завантаження 4 таблиць...');
+            updateStatus('loading', 'Оновлення даних...');
             try {
                 const [volRows, discRows, shareRows, overallDiscRows] = await Promise.all([
                     parseCsvUrl(URL_VOLUME),
@@ -235,10 +398,10 @@
                 ]);
 
                 mergeAndProcessData(volRows, discRows, shareRows, overallDiscRows);
-                updateStatus('live', `Live (Оновлено ${new Date().toLocaleTimeString()})`);
+                updateStatus('live', `Live (${new Date().toLocaleTimeString()})`);
             } catch (err) {
                 console.error('Помилка завантаження:', err);
-                updateStatus('error', 'Помилка завантаження CSV');
+                updateStatus('error', 'Помилка CSV');
             }
         }
 
@@ -264,7 +427,6 @@
             return isNaN(num) ? 0 : num;
         }
 
-        // Приведення дат "15 лист. 2026 р." та "лист. 15, 2026" до єдиного ключа "15|лист|2026"
         function makeCanonicalDateKey(dateStr) {
             const cleaned = String(dateStr || '')
                 .toLowerCase()
@@ -275,47 +437,43 @@
             const parts = cleaned.split(' ');
             if (parts.length < 3) return cleaned;
 
-            // Варіант 1: "15 лист 2026"
-            if (/^\d+$/.test(parts[0])) {
-                return `${parseInt(parts[0], 10)}|${parts[1]}|${parts[2]}`;
-            }
-            // Варіант 2: "лист 15 2026"
-            if (/^\d+$/.test(parts[1])) {
-                return `${parseInt(parts[1], 10)}|${parts[0]}|${parts[2]}`;
-            }
+            if (/^\d+$/.test(parts[0])) return `${parseInt(parts[0], 10)}|${parts[1]}|${parts[2]}`;
+            if (/^\d+$/.test(parts[1])) return `${parseInt(parts[1], 10)}|${parts[0]}|${parts[2]}`;
             return cleaned;
         }
 
         function extractMonthKey(dateStr) {
             const cKey = makeCanonicalDateKey(dateStr);
             const parts = cKey.split('|');
-            if (parts.length === 3) {
-                return `${parts[1]}. ${parts[2]}`;
-            }
+            if (parts.length === 3) return `${parts[1]}. ${parts[2]}`;
             return dateStr;
         }
 
         function extractShortDate(dateStr) {
             const cKey = makeCanonicalDateKey(dateStr);
             const parts = cKey.split('|');
-            if (parts.length === 3) {
-                return `${parts[0]} ${parts[1]}.`;
-            }
+            if (parts.length === 3) return `${parts[0]} ${parts[1]}.`;
             return dateStr;
         }
 
-        // Розрахунок точного зваженого чисельника та знаменника зі звіту "Promo Codes by discount"
+        function extractDayNumber(dateStr) {
+            const cKey = makeCanonicalDateKey(dateStr);
+            const parts = cKey.split('|');
+            return parts.length === 3 ? parseInt(parts[0], 10) : 0;
+        }
+
         function calculateOverallDiscountForRow(row) {
-            if (!row) return { weightedSum: 0, promoCount: 0, avg: 0 };
+            if (!row) return { weightedSum: 0, promoCount: 0, avg: 0, tiers: {}, totalApps: 0 };
             let weightedSum = 0;
             let sumTierCounts = 0;
+            const tiers = {};
 
             Object.keys(row).forEach(key => {
-                // Шукаємо колонки номіналів знижок ("10", "15", "20", ..., "90")
                 if (/^\d+(\.\d+)?$/.test(key)) {
                     const tierPercent = parseFloat(key);
                     if (tierPercent > 0 && tierPercent <= 100) {
                         const count = parseNumber(row[key]);
+                        tiers[String(tierPercent)] = count;
                         weightedSum += count * tierPercent;
                         sumTierCounts += count;
                     }
@@ -325,8 +483,9 @@
             const explicitPromoCount = parseNumber(row['Applications with PromoCodes'] || row['Applications with PromoCode']);
             const promoCount = explicitPromoCount > 0 ? explicitPromoCount : sumTierCounts;
             const avg = promoCount > 0 ? (weightedSum / promoCount) : parseNumber(row['Average Discount']);
+            const totalApps = parseNumber(row['Applications'] || row['Applications Total']);
 
-            return { weightedSum, promoCount, avg };
+            return { weightedSum, promoCount, avg, tiers, totalApps };
         }
 
         function mergeAndProcessData(volRowsRaw, discRowsRaw, shareRowsRaw, overallDiscRowsRaw) {
@@ -383,8 +542,8 @@
                 const monthKey = extractMonthKey(dateStr);
                 monthsSet.add(monthKey);
 
-                const appsTotal = parseNumber(vRow['Applications Total'] || dRow['Applications Total'] || sRow['Applications Total']);
                 const overallStats = calculateOverallDiscountForRow(oRow);
+                const appsTotal = parseNumber(vRow['Applications Total'] || dRow['Applications Total'] || sRow['Applications Total']) || overallStats.totalApps;
 
                 const channelsObj = {};
 
@@ -403,6 +562,7 @@
                 dailyRecords.push({
                     dateStr,
                     canonicalKey: cKey,
+                    dayNum: extractDayNumber(dateStr),
                     shortDate: extractShortDate(dateStr),
                     monthKey,
                     appsTotal,
@@ -425,8 +585,36 @@
                 activeMonths.add(availableMonths[availableMonths.length - 1]);
             }
 
+            populateMonthSelectors();
             syncDaysForActiveMonths(true);
             refreshDashboardUI();
+        }
+
+        function populateMonthSelectors() {
+            const fSelect = document.getElementById('forecastMonthSelect');
+            const tSelect = document.getElementById('tiersMonthSelect');
+            const prevF = fSelect.value;
+            const prevT = tSelect.value;
+
+            fSelect.innerHTML = '';
+            tSelect.innerHTML = '<option value="ALL">Всі доступні місяці</option>';
+
+            availableMonths.forEach(m => {
+                const opt1 = document.createElement('option');
+                opt1.value = m;
+                opt1.innerText = m;
+                fSelect.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = m;
+                opt2.innerText = m;
+                tSelect.appendChild(opt2);
+            });
+
+            if (availableMonths.length > 0) {
+                fSelect.value = availableMonths.includes(prevF) ? prevF : availableMonths[availableMonths.length - 1];
+                tSelect.value = (prevT && (prevT === 'ALL' || availableMonths.includes(prevT))) ? prevT : availableMonths[availableMonths.length - 1];
+            }
         }
 
         function syncDaysForActiveMonths(selectAll = false) {
@@ -444,12 +632,55 @@
             renderMonthFilters();
             renderDayFilters();
             renderSummaryCards();
-            renderCharts();
+            renderActiveTab();
         }
 
         // ==========================================
-        // 5. КАРТКИ З ТОЧНОЮ ЗНИЖКОЮ БІЗНЕСУ ТА КАНАЛІВ
+        // 5. КАРТКИ МІСЯЦІВ (З ПРОГНОЗОМ НА ПОТОЧНИЙ)
         // ==========================================
+        function computeMonthForecast(mKey) {
+            const mDays = dailyRecords.filter(r => r.monthKey === mKey && r.overallStats && r.overallStats.promoCount > 0);
+            if (mDays.length === 0) return null;
+
+            let totalWeighted = 0;
+            let totalPromo = 0;
+            mDays.forEach(d => {
+                totalWeighted += d.overallStats.weightedSum;
+                totalPromo += d.overallStats.promoCount;
+            });
+
+            const currentAvg = totalPromo > 0 ? (totalWeighted / totalPromo) : 0;
+            const maxDay = Math.max(...mDays.map(d => d.dayNum));
+            const daysInMonth = 30; // Базова довжина місяця
+
+            // Якщо місяць не завершений (менше 28 днів даних), рахуємо прогноз
+            if (maxDay < 28) {
+                const recentDays = mDays.slice(-7);
+                let rWeighted = 0;
+                let rPromo = 0;
+                recentDays.forEach(d => {
+                    rWeighted += d.overallStats.weightedSum;
+                    rPromo += d.overallStats.promoCount;
+                });
+                const recentAvgDiscount = rPromo > 0 ? (rWeighted / rPromo) : currentAvg;
+                const avgDailyPromo = rPromo / recentDays.length;
+                const remainingDays = Math.max(0, daysInMonth - maxDay);
+
+                const projectedPromo = remainingDays * avgDailyPromo;
+                const projectedFinalAvg = (totalWeighted + projectedPromo * recentAvgDiscount) / (totalPromo + projectedPromo);
+
+                return {
+                    isPartial: true,
+                    currentAvg,
+                    projectedFinalAvg,
+                    recentAvgDiscount,
+                    maxDay
+                };
+            }
+
+            return { isPartial: false, currentAvg, projectedFinalAvg: currentAvg, maxDay };
+        }
+
         function renderSummaryCards() {
             const container = document.getElementById('summaryCards');
             container.innerHTML = '';
@@ -457,7 +688,7 @@
             availableMonths.forEach(mKey => {
                 const monthDays = dailyRecords.filter(r => {
                     if (r.monthKey !== mKey) return false;
-                    if (viewMode === 'day' && activeMonths.has(mKey)) {
+                    if (viewMode === 'day' && activeMonths.has(mKey) && currentTab === 'overview') {
                         return activeDates.has(r.canonicalKey);
                     }
                     return true;
@@ -465,12 +696,10 @@
 
                 let selectedVolSum = 0;
                 let selectedDiscNumerator = 0;
-
                 let businessWeightedSum = 0;
                 let businessPromoCount = 0;
 
                 monthDays.forEach(day => {
-                    // 1. По вибраних каналах
                     activeChannels.forEach(ch => {
                         const cData = day.channels[ch];
                         if (cData && cData.vol > 0) {
@@ -479,33 +708,35 @@
                         }
                     });
 
-                    // 2. По всьому бізнесу зі звіту "Promo Codes by discount"
                     if (day.overallStats && day.overallStats.promoCount > 0) {
                         businessWeightedSum += day.overallStats.weightedSum;
                         businessPromoCount += day.overallStats.promoCount;
                     }
                 });
 
-                const selectedAvgDiscount = selectedVolSum > 0
-                    ? (selectedDiscNumerator / selectedVolSum).toFixed(1)
-                    : '0.0';
-
-                const businessAvgDiscount = businessPromoCount > 0
-                    ? (businessWeightedSum / businessPromoCount).toFixed(1)
-                    : null;
+                const selectedAvgDiscount = selectedVolSum > 0 ? (selectedDiscNumerator / selectedVolSum).toFixed(1) : '0.0';
+                const businessAvgDiscount = businessPromoCount > 0 ? (businessWeightedSum / businessPromoCount).toFixed(1) : null;
+                const forecastInfo = computeMonthForecast(mKey);
 
                 const card = document.createElement('div');
                 card.className = 'bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between gap-3';
                 card.innerHTML = `
                     <div class="flex items-start justify-between gap-2">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 pt-0.5">${mKey}</span>
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">${mKey}</span>
+                            ${forecastInfo && forecastInfo.isPartial ? `
+                                <div class="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                    🔮 Прогноз: ${forecastInfo.projectedFinalAvg.toFixed(1)}%
+                                </div>
+                            ` : ''}
+                        </div>
                         <div class="flex flex-col items-end gap-1">
                             ${businessAvgDiscount !== null ? `
-                                <span class="text-[11px] px-2 py-0.5 rounded bg-rose-500/10 text-rose-300 font-medium border border-rose-500/20" title="Загальна середня знижка бізнесу (звіт Promo Codes by discount)">
+                                <span class="text-[11px] px-2 py-0.5 rounded bg-rose-500/10 text-rose-300 font-medium border border-rose-500/20">
                                     Бізнес: ${businessAvgDiscount}%
                                 </span>
                             ` : ''}
-                            <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 font-medium border border-indigo-500/20" title="Середньозважена знижка по вибраних у фільтрі каналах">
+                            <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 font-medium border border-indigo-500/20">
                                 Вибрані: ${selectedAvgDiscount}%
                             </span>
                         </div>
@@ -513,7 +744,7 @@
                     <div>
                         <div class="text-2xl font-bold text-white">${Math.round(selectedVolSum).toLocaleString('uk-UA')} <span class="text-xs font-normal text-slate-400">шт.</span></div>
                         <div class="text-xs text-slate-400 mt-1">
-                            Вибрані канали (${monthDays.length} дн.)${businessPromoCount > 0 ? ` · Бізнес: ${Math.round(businessPromoCount).toLocaleString('uk-UA')} шт.` : ''}
+                            Вибрані (${monthDays.length} дн.)${businessPromoCount > 0 ? ` · Бізнес: ${Math.round(businessPromoCount).toLocaleString('uk-UA')} шт.` : ''}
                         </div>
                     </div>
                 `;
@@ -522,7 +753,7 @@
         }
 
         // ==========================================
-        // 6. ФІЛЬТРИ КАНАЛІВ, МІСЯЦІВ ТА ДНІВ
+        // 6. ГЛОБАЛЬНІ ФІЛЬТРИ
         // ==========================================
         function renderChannelFilters() {
             const container = document.getElementById('channelFilters');
@@ -657,9 +888,9 @@
         }
 
         // ==========================================
-        // 7. ПОБУДОВА ГРАФІКІВ
+        // 7. ГРАФІКИ ВКЛАДКИ 1: ОСНОВНИЙ ОГЛЯД
         // ==========================================
-        function renderCharts() {
+        function renderOverviewCharts() {
             let labels = [];
             const discountDatasets = [];
             const volumeDatasets = [];
@@ -668,7 +899,6 @@
             if (viewMode === 'month') {
                 labels = availableMonths;
 
-                // Лінія загальної знижки бізнесу по місяцях
                 const monthlyBusinessDiscount = availableMonths.map(mKey => {
                     const mDays = dailyRecords.filter(r => r.monthKey === mKey);
                     let wSum = 0;
@@ -724,23 +954,19 @@
 
                         mVols.push(Math.round(volSum));
                         mDiscs.push(volSum > 0 ? +(weightedDiscSum / volSum).toFixed(1) : 0);
-
-                        const monthlyShare = appsTotalSum > 0
-                            ? (weightedShareByAppsSum / appsTotalSum)
-                            : 0;
+                        const monthlyShare = appsTotalSum > 0 ? (weightedShareByAppsSum / appsTotalSum) : 0;
                         mShares.push(+monthlyShare.toFixed(2));
                     });
 
-                    discountDatasets.push({ label: ch, data: mDiscs, borderColor: color, backgroundColor: color, tension: 0.3 });
-                    volumeDatasets.push({ label: ch, data: mVols, backgroundColor: color, borderRadius: 4 });
                     shareDatasets.push({ label: ch, data: mShares, borderColor: color, backgroundColor: color, tension: 0.3 });
+                    volumeDatasets.push({ label: ch, data: mVols, backgroundColor: color, borderRadius: 4 });
+                    discountDatasets.push({ label: ch, data: mDiscs, borderColor: color, backgroundColor: color, tension: 0.3 });
                 });
 
             } else {
                 const filteredDays = dailyRecords.filter(r => activeMonths.has(r.monthKey) && activeDates.has(r.canonicalKey));
                 labels = filteredDays.map(d => d.shortDate);
 
-                // Лінія загальної знижки бізнесу по днях
                 const dailyBusinessDiscount = filteredDays.map(d =>
                     (d.overallStats && d.overallStats.promoCount > 0) ? +d.overallStats.avg.toFixed(1) : null
                 );
@@ -764,18 +990,278 @@
                     const dDiscs = filteredDays.map(d => +(d.channels[ch]?.disc || 0).toFixed(1));
                     const dShares = filteredDays.map(d => +(d.channels[ch]?.share || 0).toFixed(2));
 
-                    discountDatasets.push({ label: ch, data: dDiscs, borderColor: color, backgroundColor: color, tension: 0.25, pointRadius: 2.5 });
-                    volumeDatasets.push({ label: ch, data: dVols, backgroundColor: color, borderRadius: 3 });
                     shareDatasets.push({ label: ch, data: dShares, borderColor: color, backgroundColor: color, tension: 0.25, pointRadius: 2.5 });
+                    volumeDatasets.push({ label: ch, data: dVols, backgroundColor: color, borderRadius: 3 });
+                    discountDatasets.push({ label: ch, data: dDiscs, borderColor: color, backgroundColor: color, tension: 0.25, pointRadius: 2.5 });
                 });
             }
 
-            createChart('discountChart', 'line', labels, discountDatasets, '%');
-            createChart('volumeChart', 'bar', labels, volumeDatasets, ' шт.');
+            // Порядок згідно з побажанням: 1. Частка -> 2. Кількість -> 3. Знижка
             createChart('shareChart', 'line', labels, shareDatasets, '%');
+            createChart('volumeChart', 'bar', labels, volumeDatasets, ' шт.');
+            createChart('discountChart', 'line', labels, discountDatasets, '%');
         }
 
-        function createChart(canvasId, type, labels, datasets, suffix) {
+        // ==========================================
+        // 8. ВКЛАДКА 2: ПРОГНОЗ ЗНИЖКИ (MTD + ПРОГНОЗ)
+        // ==========================================
+        function renderForecastView() {
+            const mKey = document.getElementById('forecastMonthSelect').value;
+            if (!mKey) return;
+
+            const mDays = dailyRecords
+                .filter(r => r.monthKey === mKey && r.overallStats && r.overallStats.promoCount > 0)
+                .sort((a, b) => a.dayNum - b.dayNum);
+
+            if (mDays.length === 0) return;
+
+            const labels = [];
+            const mtdActualSeries = [];
+            const forecastSeries = [];
+            const dailySpotSeries = [];
+
+            let cumWeighted = 0;
+            let cumPromo = 0;
+
+            mDays.forEach((d, idx) => {
+                cumWeighted += d.overallStats.weightedSum;
+                cumPromo += d.overallStats.promoCount;
+                const mtdAvg = +(cumWeighted / cumPromo).toFixed(2);
+
+                labels.push(`${d.dayNum} дн.`);
+                mtdActualSeries.push(mtdAvg);
+                dailySpotSeries.push(+d.overallStats.avg.toFixed(1));
+                // Остання точка факту є початком лінії прогнозу
+                forecastSeries.push(idx === mDays.length - 1 ? mtdAvg : null);
+            });
+
+            const lastDayObj = mDays[mDays.length - 1];
+            const currentMtdAvg = cumWeighted / cumPromo;
+
+            // Тренд останніх 7 днів
+            const recentDays = mDays.slice(-7);
+            let rWeighted = 0;
+            let rPromo = 0;
+            recentDays.forEach(d => {
+                rWeighted += d.overallStats.weightedSum;
+                rPromo += d.overallStats.promoCount;
+            });
+            const recentRunRateDiscount = rPromo > 0 ? (rWeighted / rPromo) : currentMtdAvg;
+            const avgDailyPromo = rPromo / recentDays.length;
+
+            const targetEndDay = Math.max(30, lastDayObj.dayNum);
+            let projWeighted = cumWeighted;
+            let projPromo = cumPromo;
+
+            for (let day = lastDayObj.dayNum + 1; day <= targetEndDay; day++) {
+                projWeighted += avgDailyPromo * recentRunRateDiscount;
+                projPromo += avgDailyPromo;
+                labels.push(`${day} дн.`);
+                mtdActualSeries.push(null);
+                dailySpotSeries.push(null);
+                forecastSeries.push(+(projWeighted / projPromo).toFixed(2));
+            }
+
+            const finalProjectedAvg = projPromo > 0 ? (projWeighted / projPromo) : currentMtdAvg;
+            const delta = finalProjectedAvg - currentMtdAvg;
+
+            // KPI картки для прогнозу
+            document.getElementById('forecastKpis').innerHTML = `
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400">Поточний факт MTD (за ${lastDayObj.dayNum} дн.)</div>
+                    <div class="text-2xl font-bold text-white mt-1">${currentMtdAvg.toFixed(2)}%</div>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400">Темп останніх 7 днів (Run-Rate)</div>
+                    <div class="text-2xl font-bold text-indigo-400 mt-1">${recentRunRateDiscount.toFixed(2)}%</div>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-xl border border-amber-500/30">
+                    <div class="text-xs text-amber-300">Прогноз закриття місяця (${targetEndDay} дн.)</div>
+                    <div class="text-2xl font-bold text-amber-400 mt-1">
+                        ${finalProjectedAvg.toFixed(2)}%
+                        <span class="text-xs font-normal ml-1 ${delta > 0 ? 'text-rose-400' : 'text-emerald-400'}">
+                            (${delta >= 0 ? '+' : ''}${delta.toFixed(2)}%)
+                        </span>
+                    </div>
+                </div>
+            `;
+
+            createChart('forecastChart', 'line', labels, [
+                {
+                    label: 'Накопичена знижка (Факт MTD)',
+                    data: mtdActualSeries,
+                    borderColor: '#6366f1',
+                    backgroundColor: '#6366f1',
+                    borderWidth: 3,
+                    tension: 0.25,
+                    pointRadius: 3
+                },
+                {
+                    label: 'Прогноз до кінця місяця',
+                    data: forecastSeries,
+                    borderColor: '#f59e0b',
+                    backgroundColor: '#f59e0b',
+                    borderWidth: 3,
+                    borderDash: [6, 6],
+                    tension: 0.25,
+                    pointRadius: 2.5
+                },
+                {
+                    label: 'Денна знижка (Факт дня)',
+                    data: dailySpotSeries,
+                    borderColor: 'rgba(148, 163, 184, 0.35)',
+                    backgroundColor: 'rgba(148, 163, 184, 0.35)',
+                    borderWidth: 1.5,
+                    tension: 0.25,
+                    pointRadius: 2
+                }
+            ], '%');
+        }
+
+        // ==========================================
+        // 9. ВКЛАДКА 3: РОЗПОДІЛ ЗА НОМІНАЛАМИ (10%-90%)
+        // ==========================================
+        function renderTiersView() {
+            const selectedMonth = document.getElementById('tiersMonthSelect').value;
+            const targetDays = selectedMonth === 'ALL'
+                ? dailyRecords
+                : dailyRecords.filter(r => r.monthKey === selectedMonth);
+
+            const tierTotals = {};
+            DISCOUNT_TIERS.forEach(t => tierTotals[t] = 0);
+
+            targetDays.forEach(d => {
+                if (d.overallStats && d.overallStats.tiers) {
+                    DISCOUNT_TIERS.forEach(t => {
+                        tierTotals[t] += (d.overallStats.tiers[t] || 0);
+                    });
+                }
+            });
+
+            // Залишаємо лише номінали, де є хоча б 1 видача
+            const activeTiers = DISCOUNT_TIERS.filter(t => tierTotals[t] > 0);
+            const labels = activeTiers.map(t => `${t}%`);
+            const dataValues = activeTiers.map(t => Math.round(tierTotals[t]));
+
+            createChart('tiersChart', 'bar', labels, [{
+                label: 'Кількість видач з промокодом (шт.)',
+                data: dataValues,
+                backgroundColor: activeTiers.map(t => parseInt(t, 10) >= 50 ? '#f43f5e' : (parseInt(t, 10) >= 35 ? '#f59e0b' : '#10b981')),
+                borderRadius: 6
+            }], ' шт.');
+        }
+
+        // ==========================================
+        // 10. ВКЛАДКА 4: ВНЕСОК КАНАЛІВ У ВАРТІСТЬ ЗНИЖКИ
+        // ==========================================
+        function renderContributionChart() {
+            let labels = [];
+            const datasets = [];
+
+            if (viewMode === 'month') {
+                labels = availableMonths;
+                activeChannels.forEach(ch => {
+                    const color = channelColors[ch] || '#6366f1';
+                    const points = availableMonths.map(mKey => {
+                        const mDays = dailyRecords.filter(r => r.monthKey === mKey);
+                        let chWeightedDisc = 0;
+                        let totalAllChannelsVol = 0;
+
+                        mDays.forEach(d => {
+                            if (d.channels[ch]) {
+                                chWeightedDisc += d.channels[ch].vol * d.channels[ch].disc;
+                            }
+                            availableChannels.forEach(allCh => {
+                                totalAllChannelsVol += (d.channels[allCh]?.vol || 0);
+                            });
+                        });
+
+                        return totalAllChannelsVol > 0 ? +(chWeightedDisc / totalAllChannelsVol).toFixed(2) : 0;
+                    });
+                    datasets.push({ label: ch, data: points, backgroundColor: color, borderRadius: 3 });
+                });
+            } else {
+                const filteredDays = dailyRecords.filter(r => activeMonths.has(r.monthKey) && activeDates.has(r.canonicalKey));
+                labels = filteredDays.map(d => d.shortDate);
+
+                activeChannels.forEach(ch => {
+                    const color = channelColors[ch] || '#6366f1';
+                    const points = filteredDays.map(d => {
+                        let totalDayVol = 0;
+                        availableChannels.forEach(allCh => totalDayVol += (d.channels[allCh]?.vol || 0));
+                        const chWeighted = (d.channels[ch]?.vol || 0) * (d.channels[ch]?.disc || 0);
+                        return totalDayVol > 0 ? +(chWeighted / totalDayVol).toFixed(2) : 0;
+                    });
+                    datasets.push({ label: ch, data: points, backgroundColor: color, borderRadius: 2 });
+                });
+            }
+
+            createChart('contributionChart', 'bar', labels, datasets, ' п.п.', true);
+        }
+
+        // ==========================================
+        // 11. ВКЛАДКА 5: ПРОНИКНЕННЯ ПРОМОКОДІВ (%)
+        // ==========================================
+        function renderPenetrationChart() {
+            let labels = [];
+            const penetrationSeries = [];
+            const discountSeries = [];
+
+            if (viewMode === 'month') {
+                labels = availableMonths;
+                availableMonths.forEach(mKey => {
+                    const mDays = dailyRecords.filter(r => r.monthKey === mKey);
+                    let totalApps = 0;
+                    let promoApps = 0;
+                    let weightedDisc = 0;
+
+                    mDays.forEach(d => {
+                        totalApps += d.appsTotal;
+                        if (d.overallStats) {
+                            promoApps += d.overallStats.promoCount;
+                            weightedDisc += d.overallStats.weightedSum;
+                        }
+                    });
+
+                    penetrationSeries.push(totalApps > 0 ? +((promoApps / totalApps) * 100).toFixed(1) : 0);
+                    discountSeries.push(promoApps > 0 ? +(weightedDisc / promoApps).toFixed(1) : 0);
+                });
+            } else {
+                const filteredDays = dailyRecords.filter(r => activeMonths.has(r.monthKey) && activeDates.has(r.canonicalKey));
+                labels = filteredDays.map(d => d.shortDate);
+
+                filteredDays.forEach(d => {
+                    const promoCount = d.overallStats?.promoCount || 0;
+                    penetrationSeries.push(d.appsTotal > 0 ? +((promoCount / d.appsTotal) * 100).toFixed(1) : 0);
+                    discountSeries.push(promoCount > 0 ? +d.overallStats.avg.toFixed(1) : 0);
+                });
+            }
+
+            createChart('penetrationChart', 'line', labels, [
+                {
+                    label: 'Проникнення промокодів (% заявок з промо)',
+                    data: penetrationSeries,
+                    borderColor: '#10b981',
+                    backgroundColor: '#10b981',
+                    borderWidth: 2.5,
+                    tension: 0.3
+                },
+                {
+                    label: 'Середня знижка бізнесу (%)',
+                    data: discountSeries,
+                    borderColor: '#f43f5e',
+                    backgroundColor: '#f43f5e',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    tension: 0.3
+                }
+            ], '%');
+        }
+
+        // ==========================================
+        // 12. УНІВЕРСАЛЬНИЙ РЕНДЕРЕР ГРАФІКІВ
+        // ==========================================
+        function createChart(canvasId, type, labels, datasets, suffix, stacked = false) {
             if (charts[canvasId]) charts[canvasId].destroy();
             const ctx = document.getElementById(canvasId).getContext('2d');
             charts[canvasId] = new Chart(ctx, {
@@ -794,8 +1280,13 @@
                         }
                     },
                     scales: {
-                        x: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', maxRotation: 45 } },
+                        x: {
+                            stacked: stacked,
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8', maxRotation: 45 }
+                        },
                         y: {
+                            stacked: stacked,
                             grid: { color: '#1e293b' },
                             ticks: { color: '#94a3b8', callback: val => val + suffix }
                         }
@@ -810,13 +1301,13 @@
             document.getElementById('statusText').innerText = text;
             if (type === 'live') {
                 dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                badge.className = 'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
             } else if (type === 'loading') {
                 dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-ping';
-                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                badge.className = 'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
             } else {
                 dot.className = 'w-2 h-2 rounded-full bg-rose-500';
-                badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                badge.className = 'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20';
             }
         }
 
